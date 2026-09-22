@@ -75,6 +75,33 @@ def _not_connected() -> dict:
 
 
 # ----------------------------------------------------------------------
+# Switchs connus (switches.yaml)
+# ----------------------------------------------------------------------
+
+
+class SwitchCreatePayload(BaseModel):
+    name: str
+    host: str
+
+
+@router.post("/switches")
+def switch_add(payload: SwitchCreatePayload):
+    name = payload.name.strip()
+    host = payload.host.strip()
+    if not name or not host:
+        return {"ok": False, "error": "Nom et adresse IP sont requis."}
+    switch = config.add_switch(name, host)
+    return {"ok": True, "switch": asdict(switch)}
+
+
+@router.delete("/switches/{switch_id}")
+def switch_remove(switch_id: str):
+    if not config.remove_switch(switch_id):
+        return {"ok": False, "error": "Switch introuvable."}
+    return {"ok": True}
+
+
+# ----------------------------------------------------------------------
 # Pools DHCP
 # ----------------------------------------------------------------------
 

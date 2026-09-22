@@ -129,16 +129,62 @@ async function submitDisconnect() {
 function renderDashboardSwitchCards() {
   const container = document.getElementById('dashboard-switch-list');
   if (!container) return;
+
+  if (AVAILABLE_SWITCHES.length === 0) {
+    container.innerHTML = '<p class="text-muted">Aucun switch enregistré pour l\'instant.</p>';
+    return;
+  }
+
   container.innerHTML = AVAILABLE_SWITCHES.map((s) => `
     <div class="col-md-4">
       <div class="card">
         <div class="card-body">
           <h5 class="card-title">${s.name}</h5>
           <p class="card-text text-muted">${s.host}</p>
+          <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteSwitch('${s.id}', '${s.name.replace(/'/g, "\\'")}')">Supprimer</button>
         </div>
       </div>
     </div>
   `).join('');
+}
+
+function openAddSwitchModal() {
+  document.getElementById('modal-add-switch-error').classList.add('d-none');
+  document.getElementById('new-switch-name').value = '';
+  document.getElementById('new-switch-host').value = '';
+  new bootstrap.Modal(document.getElementById('modal-add-switch')).show();
+}
+
+async function submitAddSwitch() {
+  const errorBox = document.getElementById('modal-add-switch-error');
+  errorBox.classList.add('d-none');
+
+  const payload = {
+    name: document.getElementById('new-switch-name').value,
+    host: document.getElementById('new-switch-host').value,
+  };
+
+  const result = await apiFetch('/api/switches', { method: 'POST', body: JSON.stringify(payload) });
+  if (!result.ok) {
+    errorBox.textContent = result.error || "Échec de l'ajout du switch.";
+    errorBox.classList.remove('d-none');
+    return;
+  }
+
+  location.reload();
+}
+
+function deleteSwitch(switchId, switchLabel) {
+  confirmAction(`Supprimer le switch "${switchLabel}" de la liste ?`, async () => {
+    const result = await apiFetch(`/api/switches/${encodeURIComponent(switchId)}`, { method: 'DELETE' });
+    if (!result.ok) {
+      const errorBox = document.getElementById('dashboard-error');
+      errorBox.textContent = result.error || 'Échec de la suppression.';
+      errorBox.classList.remove('d-none');
+      return;
+    }
+    location.reload();
+  });
 }
 
 // ------------------------------------------------------------------

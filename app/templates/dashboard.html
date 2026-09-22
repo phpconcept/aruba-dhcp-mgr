@@ -1,11 +1,46 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Dashboard</h2>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">Dashboard</h2>
+  <button type="button" class="btn btn-primary" id="btn-add-switch">Ajouter un switch</button>
+</div>
 <p class="text-muted">Sélectionnez un switch dans le menu en haut à droite pour vous connecter, puis consultez les pools DHCP ou les réservations.</p>
+<div id="dashboard-error" class="alert alert-danger d-none"></div>
 <div id="dashboard-switch-list" class="row g-3"></div>
+
+<!-- Modal : ajout de switch -->
+<div class="modal fade" id="modal-add-switch" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Ajouter un switch</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-add-switch-error" class="alert alert-danger d-none"></div>
+        <div class="mb-3">
+          <label class="form-label">Nom</label>
+          <input type="text" id="new-switch-name" class="form-control" placeholder="Switch labo (2930)">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Adresse IP</label>
+          <input type="text" id="new-switch-host" class="form-control" placeholder="192.168.22.4">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" id="btn-add-switch-submit" class="btn btn-primary">Ajouter</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 {% block scripts %}
 <script>
   document.addEventListener('DOMContentLoaded', renderDashboardSwitchCards);
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('btn-add-switch').addEventListener('click', openAddSwitchModal);
+    document.getElementById('btn-add-switch-submit').addEventListener('click', submitAddSwitch);
+  });
 </script>
 {% endblock %}

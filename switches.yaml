@@ -1,6 +1,6 @@
 # Liste des switchs Aruba connus (nom + IP uniquement — jamais d'identifiants ici).
 # Le username/password sont demandés à chaque session via la popup de connexion.
 switches:
-  - id: switch-test
-    name: "Switch labo (2930)"
-    host: "192.168.22.4"
+- id: switch-test
+  name: Switch labo (2930)
+  host: 192.168.22.4

@@ -133,10 +133,18 @@ def pool_add(payload: PoolPayload, request: Request):
     client = _get_connected_client(request, payload.switch_id)
     if client is None:
         return _not_connected()
+
+    name = payload.name.strip()
+    if not _NAME_RE.match(name):
+        return {
+            "ok": False,
+            "error": f"Nom invalide : « {name} » (lettres, chiffres et tirets uniquement).",
+        }
+
     try:
         dhcp.pool_add(
             client,
-            payload.name,
+            name,
             payload.ip,
             payload.mask,
             dns_servers=payload.dns_servers or None,

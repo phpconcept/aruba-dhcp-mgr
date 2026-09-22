@@ -37,6 +37,7 @@ function refreshCurrentPage() {
   if (document.getElementById('bindings-table-body')) loadBindingsIfConnected();
   if (document.getElementById('pool-detail-content')) loadPoolDetailIfConnected();
   if (document.getElementById('dashboard-switch-list')) renderDashboardSwitchCards();
+  if (document.getElementById('switch-detail-content')) loadSwitchDetailIfConnected();
 }
 
 function csvToList(value) {
@@ -179,7 +180,7 @@ async function renderDashboardSwitchCards() {
     <div class="col-md-4">
       <div class="card ${isConnected ? 'border-success' : ''}">
         <div class="card-body">
-          <h5 class="card-title">${s.name}</h5>
+          <h5 class="card-title"><a href="/switches/${encodeURIComponent(s.id)}">${s.name}</a></h5>
           <p class="card-text text-muted">${s.host}</p>
           ${connectBtn}
           ${deleteBtn}
@@ -690,4 +691,47 @@ function deleteRange(ipStart, ipEnd) {
     }
     await loadPoolDetailIfConnected();
   });
+}
+
+
+// ------------------------------------------------------------------
+// Fiche d'un switch (informations générales + paramètres DHCP globaux)
+// ------------------------------------------------------------------
+
+async function loadSwitchDetailIfConnected() {
+  const content = document.getElementById('switch-detail-content');
+  const errorBox = document.getElementById('switch-detail-error');
+  const loadingBox = document.getElementById('switch-detail-loading');
+  if (!content) return;
+  await refreshStatus();
+  errorBox.classList.add('d-none');
+  content.classList.add('d-none');
+
+  if (!g_status.connected.includes(SWITCH_ID)) {
+    errorBox.textContent = 'Connectez-vous à ce switch depuis le dashboard pour voir ses paramètres.';
+    errorBox.classList.remove('d-none');
+    return;
+  }
+
+  loadingBox.classList.remove('d-none');
+  const result = await apiFetch(`/api/switches/${encodeURIComponent(SWITCH_ID)}/dhcp-status`);
+  loadingBox.classList.add('d-none');
+
+  if (!result.ok) {
+    errorBox.textContent = result.error;
+    errorBox.classList.remove('d-none');
+    return;
+  }
+
+  const badge = document.getElementById('dhcp-status-badge');
+  if (result.dhcp_enabled === true) {
+    badge.innerHTML = '<span class="badge bg-success">Activé</span>';
+  } else if (result.dhcp_enabled === false) {
+    badge.innerHTML = '<span class="badge bg-secondary">Désactivé</span>';
+  } else {
+    badge.innerHTML = '<span class="badge bg-warning text-dark">Indéterminé</span> <span class="text-muted small">(format de sortie switch non reconnu)</span>';
+  }
+
+  content.classList.remove('d-none');
+  setLastUpdated('switch-detail-last-updated');
 }

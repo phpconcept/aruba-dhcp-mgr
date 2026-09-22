@@ -43,3 +43,14 @@ def bindings_page(request: Request):
 def pool_detail_page(name: str, request: Request):
     context = _base_context() | {"active_page": "pools", "pool_name": name}
     return templates.TemplateResponse(request=request, name="pool_detail.html", context=context)
+
+
+@router.get("/switches/{switch_id}")
+def switch_detail_page(switch_id: str, request: Request):
+    switch = config.get_switch(switch_id)
+    context = _base_context() | {
+        "active_page": "dashboard",
+        "switch_id": switch_id,
+        "switch": switch,
+    }
+    return templates.TemplateResponse(request=request, name="switch_detail.html", context=context)

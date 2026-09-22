@@ -103,6 +103,25 @@ def switch_remove(switch_id: str):
 
 
 # ----------------------------------------------------------------------
+# Switch — paramètres globaux
+# ----------------------------------------------------------------------
+
+
+@router.get("/switches/{switch_id}/dhcp-status")
+def switch_dhcp_status(switch_id: str, request: Request):
+    client = _get_connected_client(request, switch_id)
+    if client is None:
+        return _not_connected()
+    try:
+        enabled = dhcp.server_status(client)
+    except AosSwitchError as exc:
+        return {"ok": False, "error": str(exc)}
+    # enabled : True/False si déterminé, None si le format de sortie du
+    # switch n'a pas été reconnu (voir dhcp.server_status()).
+    return {"ok": True, "dhcp_enabled": enabled}
+
+
+# ----------------------------------------------------------------------
 # Pools DHCP
 # ----------------------------------------------------------------------
 

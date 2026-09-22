@@ -258,9 +258,18 @@ def pool_detail(name: str, switch_id: str, request: Request):
     except ValueError:
         pass  # réseau/masque du pool non exploitables, on ignore le calcul
 
+    pool_dict = asdict(pool)
+    # domain_name n'est fiable que via show running-config (voir
+    # dhcp.pool_domain_name()) — non exposé par pool_list()/REST. Lecture
+    # ponctuelle ici (fiche d'un seul pool), pas en boucle sur la liste.
+    try:
+        pool_dict["domain_name"] = dhcp.pool_domain_name(client, name)
+    except AosSwitchError:
+        pass  # best-effort : si ça échoue, on garde le domain_name de pool_list() (toujours None)
+
     return {
         "ok": True,
-        "pool": asdict(pool),
+        "pool": pool_dict,
         "dynamic_bindings": dynamic_bindings,
         "static_bindings": static_bindings,
     }

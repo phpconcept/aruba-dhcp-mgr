@@ -159,8 +159,10 @@ doit indiquer `HTTPS Access : Enabled` (port SSL 443).
 
 ## 8. Pistes pour la suite
 
-- ✅ Fiche switch (`/switches/<id>`) : infos générales (nom/IP) + statut
-  enable/disable du serveur DHCP — voir §9.5 pour la fiabilité du parsing
+- ✅ Fiche switch (`/switches/<id>`) : infos générales (nom/IP), statut
+  enable/disable du serveur DHCP avec bascule (confirmation à la
+  désactivation, pas de bouton si statut indéterminé), tableau des pools —
+  voir §9.5 pour la fiabilité du parsing du statut
 - ✅ Ajout/suppression de pools DHCP (`pool_add`/`pool_delete`)
 - ✅ Ajout/suppression de réservations DHCP (`binding_add`/`binding_delete`,
   suppression limitée aux réservations statiques — voir §9)

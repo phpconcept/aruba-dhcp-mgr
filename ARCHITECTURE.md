@@ -254,3 +254,26 @@ page `/pools/<name>` (plutôt qu'une popup, ou deux écrans séparés) :
   switch.
 - Réseau/masque du pool volontairement non éditables depuis cette page (voir
   §8).
+
+### 9.4 Le nom de pool est la seule clé — écrasement silencieux si réutilisé
+
+Observé en usage réel : côté switch, **le nom du pool est le seul
+identifiant unique**. Conséquences constatées :
+
+- **Même nom réutilisé** → écrase l'entrée existante (nouvelle IP/MAC,
+  nouveau réseau...), **sans aucun avertissement côté switch**. Parfois
+  voulu (corriger une entrée), parfois une erreur de saisie qui écrase
+  silencieusement une réservation existante.
+- **Noms différents, IP/MAC différentes, pools différents** → crée bien deux
+  entrées distinctes. Cohérent, et c'est ce qui permet la souplesse
+  actuelle (plusieurs réservations statiques indépendantes).
+- **Noms différents, mais même IP/MAC réutilisée dans le même pool** →
+  remplace l'ancienne entrée par la nouvelle (comportement attendu, le
+  switch ne duplique pas une réservation sur la même IP).
+
+**Piste d'amélioration à trancher plus tard** : faut-il ajouter un
+avertissement/une confirmation côté appli quand le nom saisi (à l'ajout
+d'un pool ou d'une réservation) correspond à un pool déjà existant sur le
+switch, pour éviter un écrasement accidentel ? Aujourd'hui rien ne le
+signale ni côté switch ni côté `aruba-dhcp-mgr` — à la charge de
+l'utilisateur de vérifier avant de valider.

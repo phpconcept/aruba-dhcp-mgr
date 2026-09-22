@@ -101,9 +101,10 @@ async function submitConnect() {
     return;
   }
 
-  bootstrap.Modal.getInstance(document.getElementById('modal-connect')).hide();
-  await refreshStatus();
-  document.dispatchEvent(new CustomEvent('adm:switch-connected', { detail: { switchId } }));
+  // Connexion réussie : direction la page des pools plutôt que de rester
+  // sur le dashboard (navigation complète, plus simple qu'un rechargement
+  // en place puisqu'on change de page de toute façon).
+  window.location.href = '/pools';
 }
 
 async function disconnectSwitch(switchId) {

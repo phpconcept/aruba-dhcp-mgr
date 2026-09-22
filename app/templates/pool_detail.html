@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Pool : {{ pool_name }}</h2>
+  <a href="/pools" class="btn btn-outline-secondary btn-sm">&larr; Retour aux pools</a>
+</div>
+
+<div id="pool-detail-error" class="alert alert-danger d-none"></div>
+<div id="pool-detail-content" class="d-none">
+
+  <div class="card mb-3">
+    <div class="card-header">Informations générales</div>
+    <div class="card-body">
+      <dl class="row mb-0">
+        <dt class="col-sm-3">Nom</dt><dd class="col-sm-9" id="detail-name"></dd>
+        <dt class="col-sm-3">Réseau</dt><dd class="col-sm-9" id="detail-ip"></dd>
+        <dt class="col-sm-3">Masque</dt><dd class="col-sm-9" id="detail-mask"></dd>
+      </dl>
+      <hr>
+      <div class="mb-3">
+        <label class="form-label">Passerelles (séparées par des virgules)</label>
+        <input type="text" id="detail-gateways" class="form-control">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">DNS (séparés par des virgules)</label>
+        <input type="text" id="detail-dns" class="form-control">
+      </div>
+      <div id="detail-edit-error" class="alert alert-danger d-none"></div>
+      <button type="button" id="btn-save-pool" class="btn btn-primary">Enregistrer</button>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">Plages d'adresses (range)</div>
+    <div class="card-body">
+      <table class="table table-sm">
+        <thead><tr><th>Début</th><th>Fin</th><th></th></tr></thead>
+        <tbody id="ranges-table-body"></tbody>
+      </table>
+      <div id="detail-range-error" class="alert alert-danger d-none"></div>
+      <div class="row g-2 align-items-end">
+        <div class="col-auto">
+          <label class="form-label small mb-0">Début</label>
+          <input type="text" id="range-start" class="form-control form-control-sm" placeholder="192.168.30.50">
+        </div>
+        <div class="col-auto">
+          <label class="form-label small mb-0">Fin</label>
+          <input type="text" id="range-end" class="form-control form-control-sm" placeholder="192.168.30.100">
+        </div>
+        <div class="col-auto">
+          <button type="button" id="btn-add-range" class="btn btn-outline-primary btn-sm">Ajouter la plage</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">Baux dynamiques actifs</div>
+    <div class="card-body">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>IP</th><th>MAC</th><th>Expire</th></tr></thead>
+        <tbody id="dynamic-bindings-table-body">
+          <tr><td colspan="3" class="text-muted">Aucun bail actif.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">
+      Réservations statiques dans ce sous-réseau
+      <span class="text-muted small">(détection par plage d'adresses — informatif, non garanti exhaustif)</span>
+    </div>
+    <div class="card-body">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Nom</th><th>IP</th><th>MAC</th></tr></thead>
+        <tbody id="static-bindings-table-body">
+          <tr><td colspan="3" class="text-muted">Aucune réservation statique détectée dans ce sous-réseau.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <p id="pool-detail-last-updated" class="text-muted small"></p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const POOL_NAME = {{ pool_name|tojson }};
+  document.addEventListener('DOMContentLoaded', loadPoolDetailIfConnected);
+  document.addEventListener('adm:switch-connected', loadPoolDetailIfConnected);
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('btn-save-pool').addEventListener('click', submitSavePool);
+    document.getElementById('btn-add-range').addEventListener('click', submitAddRange);
+  });
+</script>
+{% endblock %}

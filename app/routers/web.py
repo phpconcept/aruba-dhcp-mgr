@@ -37,3 +37,9 @@ def pools_page(request: Request):
 def bindings_page(request: Request):
     context = _base_context() | {"active_page": "bindings"}
     return templates.TemplateResponse(request=request, name="bindings.html", context=context)
+
+
+@router.get("/pools/{name}")
+def pool_detail_page(name: str, request: Request):
+    context = _base_context() | {"active_page": "pools", "pool_name": name}
+    return templates.TemplateResponse(request=request, name="pool_detail.html", context=context)

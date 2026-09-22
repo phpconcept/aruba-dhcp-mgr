@@ -34,6 +34,7 @@ function setLastUpdated(elementId) {
 function refreshCurrentPage() {
   if (document.getElementById('pools-table-body')) loadPoolsIfConnected();
   if (document.getElementById('bindings-table-body')) loadBindingsIfConnected();
+  if (document.getElementById('pool-detail-content')) loadPoolDetailIfConnected();
 }
 
 function csvToList(value) {
@@ -173,7 +174,7 @@ async function loadPoolsIfConnected() {
 
   tbody.innerHTML = result.pools.map((p) => `
     <tr>
-      <td>${p.name}</td>
+      <td><a href="/pools/${encodeURIComponent(p.name)}">${p.name}</a></td>
       <td>${p.ip || ''}</td>
       <td>${p.mask || ''}</td>
       <td>${p.default_gateways.join(', ')}</td>
@@ -353,3 +354,115 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+
+// ------------------------------------------------------------------
+// Fiche / édition d'un pool
+// ------------------------------------------------------------------
+
+async function loadPoolDetailIfConnected() {
+  const content = document.getElementById('pool-detail-content');
+  const errorBox = document.getElementById('pool-detail-error');
+  if (!content) return;
+  await refreshStatus();
+  errorBox.classList.add('d-none');
+  content.classList.add('d-none');
+
+  if (!g_status.current) {
+    errorBox.textContent = 'Connectez-vous à un switch pour afficher ce pool.';
+    errorBox.classList.remove('d-none');
+    return;
+  }
+
+  const result = await apiFetch(`/api/pools/${encodeURIComponent(POOL_NAME)}?switch_id=${g_status.current}`);
+  if (!result.ok) {
+    errorBox.textContent = result.error;
+    errorBox.classList.remove('d-none');
+    return;
+  }
+
+  renderPoolDetail(result);
+  content.classList.remove('d-none');
+  setLastUpdated('pool-detail-last-updated');
+}
+
+function renderPoolDetail(result) {
+  const p = result.pool;
+  document.getElementById('detail-name').textContent = p.name;
+  document.getElementById('detail-ip').textContent = p.ip || '';
+  document.getElementById('detail-mask').textContent = p.mask || '';
+  document.getElementById('detail-gateways').value = p.default_gateways.join(', ');
+  document.getElementById('detail-dns').value = p.dns_servers.join(', ');
+
+  const rangesBody = document.getElementById('ranges-table-body');
+  rangesBody.innerHTML = p.ip_ranges.length === 0
+    ? '<tr><td colspan="3" class="text-muted">Aucune plage définie.</td></tr>'
+    : p.ip_ranges.map((r) => `
+        <tr>
+          <td>${r.ip_start}</td>
+          <td>${r.ip_end}</td>
+          <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteRange('${r.ip_start}', '${r.ip_end}')">Supprimer</button></td>
+        </tr>
+      `).join('');
+
+  const dynBody = document.getElementById('dynamic-bindings-table-body');
+  dynBody.innerHTML = result.dynamic_bindings.length === 0
+    ? '<tr><td colspan="3" class="text-muted">Aucun bail actif.</td></tr>'
+    : result.dynamic_bindings.map((b) => `<tr><td>${b.ip}</td><td>${b.mac}</td><td>${b.expire}</td></tr>`).join('');
+
+  const staticBody = document.getElementById('static-bindings-table-body');
+  staticBody.innerHTML = result.static_bindings.length === 0
+    ? '<tr><td colspan="3" class="text-muted">Aucune réservation statique détectée dans ce sous-réseau.</td></tr>'
+    : result.static_bindings.map((b) => `<tr><td>${b.name}</td><td>${b.ip}</td><td>${b.mac}</td></tr>`).join('');
+}
+
+async function submitSavePool() {
+  const errorBox = document.getElementById('detail-edit-error');
+  errorBox.classList.add('d-none');
+  const payload = {
+    switch_id: g_status.current,
+    default_gateways: csvToList(document.getElementById('detail-gateways').value),
+    dns_servers: csvToList(document.getElementById('detail-dns').value),
+  };
+  const result = await apiFetch(`/api/pools/${encodeURIComponent(POOL_NAME)}`, { method: 'PUT', body: JSON.stringify(payload) });
+  if (!result.ok) {
+    errorBox.textContent = result.error || 'Échec de la mise à jour.';
+    errorBox.classList.remove('d-none');
+    return;
+  }
+  await loadPoolDetailIfConnected();
+}
+
+async function submitAddRange() {
+  const errorBox = document.getElementById('detail-range-error');
+  errorBox.classList.add('d-none');
+  const payload = {
+    switch_id: g_status.current,
+    ip_start: document.getElementById('range-start').value,
+    ip_end: document.getElementById('range-end').value,
+  };
+  const result = await apiFetch(`/api/pools/${encodeURIComponent(POOL_NAME)}/ranges`, { method: 'POST', body: JSON.stringify(payload) });
+  if (!result.ok) {
+    errorBox.textContent = result.error || "Échec de l'ajout de la plage.";
+    errorBox.classList.remove('d-none');
+    return;
+  }
+  document.getElementById('range-start').value = '';
+  document.getElementById('range-end').value = '';
+  await loadPoolDetailIfConnected();
+}
+
+function deleteRange(ipStart, ipEnd) {
+  confirmAction(`Supprimer la plage ${ipStart} - ${ipEnd} ?`, async () => {
+    const errorBox = document.getElementById('detail-range-error');
+    errorBox.classList.add('d-none');
+    const params = new URLSearchParams({ switch_id: g_status.current, ip_start: ipStart, ip_end: ipEnd });
+    const result = await apiFetch(`/api/pools/${encodeURIComponent(POOL_NAME)}/ranges?${params}`, { method: 'DELETE' });
+    if (!result.ok) {
+      errorBox.textContent = result.error || 'Échec de la suppression.';
+      errorBox.classList.remove('d-none');
+      return;
+    }
+    await loadPoolDetailIfConnected();
+  });
+}

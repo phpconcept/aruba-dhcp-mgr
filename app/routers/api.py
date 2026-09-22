@@ -1,6 +1,7 @@
 """Endpoints JSON appelés en JS (fetch) : connexion switch, gestion pools/bindings."""
 from __future__ import annotations
 
+import ipaddress
 from dataclasses import asdict
 
 from fastapi import APIRouter, Request
@@ -9,6 +10,7 @@ from pydantic import BaseModel
 from app import config, switch_session
 from aruba_aos_switch import dhcp
 from aruba_aos_switch.exceptions import AosSwitchError
+from aruba_aos_switch.models import IpRange
 
 router = APIRouter(prefix="/api")
 
@@ -124,6 +126,107 @@ def pool_delete(name: str, switch_id: str, request: Request):
         return _not_connected()
     try:
         dhcp.pool_delete(client, name)
+    except AosSwitchError as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": True}
+
+
+@router.get("/pools/{name}")
+def pool_detail(name: str, switch_id: str, request: Request):
+    """
+    Fiche détaillée d'un pool : ses infos, les baux dynamiques actifs qu'il a
+    distribués (lien fiable via binding.pool == name) et les réservations
+    statiques dont l'IP tombe dans son réseau (lien calculé/best-effort :
+    sur ArubaOS-Switch une réservation statique est un pool à part, sans
+    lien structurel avec le pool réseau — voir ARCHITECTURE.md §9).
+    """
+    client = _get_connected_client(request, switch_id)
+    if client is None:
+        return _not_connected()
+    try:
+        pools = dhcp.pool_list(client)
+        bindings = dhcp.binding_list(client)
+    except AosSwitchError as exc:
+        return {"ok": False, "error": str(exc)}
+
+    pool = next((p for p in pools if p.name == name), None)
+    if pool is None:
+        return {"ok": False, "error": f"Pool « {name} » introuvable (ou sans réseau défini)."}
+
+    dynamic_bindings = [asdict(b) for b in bindings if b.type == "dynamic" and b.pool == name]
+
+    static_bindings = []
+    try:
+        network = ipaddress.ip_network(f"{pool.ip}/{pool.mask}", strict=False)
+        for b in bindings:
+            if b.type != "static":
+                continue
+            try:
+                if ipaddress.ip_address(b.ip) in network:
+                    static_bindings.append(asdict(b))
+            except ValueError:
+                continue
+    except ValueError:
+        pass  # réseau/masque du pool non exploitables, on ignore le calcul
+
+    return {
+        "ok": True,
+        "pool": asdict(pool),
+        "dynamic_bindings": dynamic_bindings,
+        "static_bindings": static_bindings,
+    }
+
+
+class PoolEditPayload(BaseModel):
+    switch_id: str
+    dns_servers: list[str] = []
+    default_gateways: list[str] = []
+
+
+@router.put("/pools/{name}")
+def pool_edit(name: str, payload: PoolEditPayload, request: Request):
+    client = _get_connected_client(request, payload.switch_id)
+    if client is None:
+        return _not_connected()
+    try:
+        dhcp.pool_edit(
+            client,
+            name,
+            dns_servers=payload.dns_servers,
+            default_gateways=payload.default_gateways,
+        )
+    except AosSwitchError as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": True}
+
+
+class RangePayload(BaseModel):
+    switch_id: str
+    ip_start: str
+    ip_end: str
+
+
+@router.post("/pools/{name}/ranges")
+def pool_range_add(name: str, payload: RangePayload, request: Request):
+    client = _get_connected_client(request, payload.switch_id)
+    if client is None:
+        return _not_connected()
+    try:
+        dhcp.pool_edit(
+            client, name, ip_ranges_add=[IpRange(payload.ip_start, payload.ip_end)]
+        )
+    except AosSwitchError as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": True}
+
+
+@router.delete("/pools/{name}/ranges")
+def pool_range_delete(name: str, switch_id: str, ip_start: str, ip_end: str, request: Request):
+    client = _get_connected_client(request, switch_id)
+    if client is None:
+        return _not_connected()
+    try:
+        dhcp.pool_edit(client, name, ip_ranges_remove=[IpRange(ip_start, ip_end)])
     except AosSwitchError as exc:
         return {"ok": False, "error": str(exc)}
     return {"ok": True}

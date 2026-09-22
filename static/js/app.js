@@ -170,6 +170,11 @@ async function renderDashboardSwitchCards() {
     const connectBtn = isConnected
       ? `<button type="button" class="btn btn-sm btn-outline-danger me-2" onclick="disconnectSwitch('${s.id}')">Déconnecter</button>`
       : `<button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="openConnectModal('${s.id}')">Connecter</button>`;
+    // Suppression réservée aux switchs déconnectés, pour éviter de retirer
+    // de la liste un switch sur lequel une session est en cours.
+    const deleteBtn = isConnected
+      ? ''
+      : `<button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteSwitch('${s.id}', '${s.name.replace(/'/g, "\\'")}')">Supprimer</button>`;
     return `
     <div class="col-md-4">
       <div class="card ${isConnected ? 'border-success' : ''}">
@@ -177,7 +182,7 @@ async function renderDashboardSwitchCards() {
           <h5 class="card-title">${s.name}</h5>
           <p class="card-text text-muted">${s.host}</p>
           ${connectBtn}
-          <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteSwitch('${s.id}', '${s.name.replace(/'/g, "\\'")}')">Supprimer</button>
+          ${deleteBtn}
         </div>
       </div>
     </div>

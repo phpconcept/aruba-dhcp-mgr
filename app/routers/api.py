@@ -269,6 +269,7 @@ def _valid_ipv4(value: str) -> bool:
 
 
 _MAC_CLEAN_RE = re.compile(r"^[0-9A-F]{12}$")
+_NAME_RE = re.compile(r"^[A-Za-z0-9-]+$")
 
 
 def _normalize_mac(raw: str) -> tuple[str, str] | None:
@@ -335,7 +336,16 @@ def binding_add(payload: BindingPayload, request: Request):
     if not _valid_ipv4(ip_mask):
         return {"ok": False, "error": f"Masque invalide : « {payload.ip_mask} »."}
 
-    name = payload.name.strip() or mac_display_format
+    # Nom du pool statique sous-jacent : ArubaOS-Switch n'accepte que
+    # alphanumérique + tiret. Par défaut on reprend la MAC au format switch
+    # (déjà conforme à cette contrainte), plutôt que le format affichage
+    # (qui contient des « : »).
+    name = payload.name.strip() or mac_switch_format
+    if not _NAME_RE.match(name):
+        return {
+            "ok": False,
+            "error": f"Nom invalide : « {name} » (lettres, chiffres et tirets uniquement).",
+        }
 
     try:
         dhcp.binding_add(client, name, mac_switch_format, ip, ip_mask)

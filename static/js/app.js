@@ -53,6 +53,10 @@ function isValidMac(value) {
   return /^[0-9A-F]{12}$/.test(cleaned);
 }
 
+function isValidName(value) {
+  return /^[A-Za-z0-9-]+$/.test(value.trim());
+}
+
 function switchName(switchId) {
   const sw = AVAILABLE_SWITCHES.find((s) => s.id === switchId);
   return sw ? sw.name : switchId;
@@ -351,6 +355,7 @@ async function submitAddBinding() {
 
   const ip = document.getElementById('binding-ip').value.trim();
   const mac = document.getElementById('binding-mac').value.trim();
+  const name = document.getElementById('binding-name').value.trim();
 
   if (!isValidIPv4(ip)) {
     errorBox.textContent = `Adresse IP invalide : « ${ip} ».`;
@@ -362,10 +367,15 @@ async function submitAddBinding() {
     errorBox.classList.remove('d-none');
     return;
   }
+  if (name && !isValidName(name)) {
+    errorBox.textContent = `Nom invalide : « ${name} » (lettres, chiffres et tirets uniquement).`;
+    errorBox.classList.remove('d-none');
+    return;
+  }
 
   const payload = {
     switch_id: g_status.current,
-    name: document.getElementById('binding-name').value.trim(),
+    name,
     mac,
     ip,
     ip_mask: document.getElementById('binding-ip-mask').value.trim(),

@@ -141,10 +141,10 @@ async function submitConnect() {
     return;
   }
 
-  // Connexion réussie : direction la page des pools plutôt que de rester
-  // sur le dashboard (navigation complète, plus simple qu'un rechargement
-  // en place puisqu'on change de page de toute façon).
-  window.location.href = '/pools';
+  // Connexion réussie : direction la fiche de ce switch plutôt que de
+  // rester sur la page courante (navigation complète, plus simple qu'un
+  // rechargement en place puisqu'on change de page de toute façon).
+  window.location.href = `/switches/${encodeURIComponent(switchId)}`;
 }
 
 async function disconnectSwitch(switchId) {

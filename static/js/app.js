@@ -362,6 +362,14 @@ function deletePool(name) {
 // Réservations (bindings) DHCP
 // ------------------------------------------------------------------
 
+function deducePoolForIp(ip, pools) {
+  for (const p of pools) {
+    if (!p.ip || !p.mask) continue;
+    if (ipInSubnet(ip, p.ip, p.mask)) return p.name;
+  }
+  return null;
+}
+
 async function loadBindingsIfConnected() {
   const tbody = document.getElementById('bindings-table-body');
   const errorBox = document.getElementById('bindings-error');
@@ -370,31 +378,44 @@ async function loadBindingsIfConnected() {
   errorBox.classList.add('d-none');
 
   if (!g_status.current) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Connectez-vous à un switch pour afficher les réservations.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-muted">Connectez-vous à un switch pour afficher les réservations.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Chargement en cours...</td></tr>';
-  const result = await apiFetch(`/api/bindings?switch_id=${g_status.current}`);
-  if (!result.ok) {
-    errorBox.textContent = result.error;
+  tbody.innerHTML = '<tr><td colspan="7" class="text-muted">Chargement en cours...</td></tr>';
+  const [bindingsResult, poolsResult] = await Promise.all([
+    apiFetch(`/api/bindings?switch_id=${g_status.current}`),
+    apiFetch(`/api/pools?switch_id=${g_status.current}`),
+  ]);
+  if (!bindingsResult.ok) {
+    errorBox.textContent = bindingsResult.error;
     errorBox.classList.remove('d-none');
     tbody.innerHTML = '';
     return;
   }
+  // La colonne Pool est une aide de confort : si la lecture des pools
+  // échoue pour une raison ou une autre, les réservations s'affichent
+  // quand même, juste sans le pool déduit.
+  const pools = poolsResult.ok ? poolsResult.pools : [];
 
   setLastUpdated('bindings-last-updated');
 
-  if (result.bindings.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Aucune réservation.</td></tr>';
+  if (bindingsResult.bindings.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-muted">Aucune réservation.</td></tr>';
     return;
   }
 
-  const sortedBindings = [...result.bindings].sort((a, b) => ipToInt(a.ip) - ipToInt(b.ip));
+  const sortedBindings = [...bindingsResult.bindings].sort((a, b) => ipToInt(a.ip) - ipToInt(b.ip));
 
   tbody.innerHTML = sortedBindings.map((b) => {
     const isStatic = b.type === 'static';
     const label = b.name || b.pool || '';
+    // Dynamique : lien direct et fiable (b.pool). Statique : pool déduit
+    // par appartenance au sous-réseau (best-effort, voir ARCHITECTURE.md §9.4).
+    const poolName = isStatic ? deducePoolForIp(b.ip, pools) : b.pool;
+    const poolCell = poolName
+      ? `<a href="/pools/${encodeURIComponent(poolName)}" class="link-discreet">${poolName}</a>`
+      : '<span class="text-muted">—</span>';
     const deleteBtn = isStatic
       ? `<button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteBinding('${b.name}')">Supprimer</button>`
       : '';
@@ -405,6 +426,7 @@ async function loadBindingsIfConnected() {
       <td>${b.type}</td>
       <td>${b.expire}</td>
       <td>${label}</td>
+      <td>${poolCell}</td>
       <td>${deleteBtn}</td>
     </tr>
   `;

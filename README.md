@@ -13,10 +13,26 @@ pour le détail des choix techniques.
 - Connexion à un ou plusieurs switchs connus (`switches.yaml`), avec
   login/mot de passe demandés à chaque session — rien n'est jamais stocké
   sur disque
-- Ajout/suppression de switchs depuis le dashboard
-- Lecture et suppression des pools DHCP et des réservations statiques
-- Fiche détaillée par pool : passerelles, DNS, plages d'adresses (ajout et
-  suppression), baux dynamiques actifs, réservations statiques associées
+- Ajout/suppression de switchs depuis le dashboard (mode carte)
+- Pools DHCP : liste, ajout, suppression
+- Réservations statiques : liste, ajout, suppression (formulaire global,
+  sans contrainte de sous-réseau)
+- Fiche détaillée par pool (`/pools/<name>`) :
+  - passerelles/DNS éditables
+  - plages d'adresses (ajout/suppression)
+  - baux dynamiques actifs (lien fiable avec le pool)
+  - réservations statiques du sous-réseau (détection informative par CIDR)
+    avec ajout contraint (IP dans le sous-réseau du pool, masque du pool
+    utilisé automatiquement) et suppression
+- Validations à la création (pool comme réservation) : IP/masque bien
+  formés, nom limité à 32 caractères alphanumériques/tirets (limite
+  switch), nom par défaut dérivé automatiquement si laissé vide
+- Rafraîchissement manuel + horodatage de dernière mise à jour, sur les
+  pages pools/réservations et sur la fiche pool
+
+Voir [`ARCHITECTURE.md`](ARCHITECTURE.md) pour le détail des choix, y
+compris quelques comportements du switch à connaître (écrasement silencieux
+sur un nom de pool réutilisé, pools sans réseau invisibles dans la liste...).
 
 ## Prérequis
 

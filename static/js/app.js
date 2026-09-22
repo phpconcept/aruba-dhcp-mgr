@@ -506,8 +506,9 @@ function deleteBinding(name) {
 
 let g_confirmCallback = null;
 
-function confirmAction(message, onConfirm) {
+function confirmAction(message, onConfirm, confirmLabel) {
   document.getElementById('modal-confirm-text').textContent = message;
+  document.getElementById('btn-confirm-submit').textContent = confirmLabel || 'Supprimer';
   g_confirmCallback = onConfirm;
   new bootstrap.Modal(document.getElementById('modal-confirm')).show();
 }
@@ -841,7 +842,8 @@ function toggleDhcpServer(newState) {
     // par ce switch : action impactante, confirmation obligatoire.
     confirmAction(
       "Désactiver le serveur DHCP sur ce switch ? Cela coupera la distribution DHCP sur tous les VLANs concernés.",
-      doToggle
+      doToggle,
+      'Éteindre'
     );
   }
 }

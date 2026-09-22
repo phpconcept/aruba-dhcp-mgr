@@ -127,10 +127,26 @@ API (management HTTPS). Une fois cette conf faite, connexion, lecture des
 pools et des réservations fonctionnent bien.
 
 **À faire plus tard** :
-- Documenter ici la ou les commandes CLI exactes ArubaOS-Switch qui ont
-  résolu le problème (certificat, `web-management ssl`, activation REST API),
-  une fois qu'on les aura reprises précisément — pour ne pas avoir à
-  redécouvrir sur le prochain switch à configurer.
+
+**Commandes CLI ArubaOS-Switch qui résolvent ce point** (à refaire sur tout
+nouveau switch 2930 avant de pouvoir s'y connecter) :
+```
+# Création d'un certificat auto-signé
+crypto pki identity-profile HTTPS-PROFILE subject common-name Sw-2930F-Access org Lab country FR
+crypto pki enroll-self-signed certificate-name HTTPS-CERT
+
+# Activation du management HTTPS
+web-management ssl
+
+# Activation de l'API REST
+rest-interface
+```
+Vérification :
+```
+show web-management
+```
+doit indiquer `HTTPS Access : Enabled` (port SSL 443).
+
 - Éventuellement, un petit outil/page de troubleshooting côté
   `aruba-dhcp-mgr` (ou dans la lib `aruba-aos-switch`) qui teste la
   joignabilité HTTPS/REST avant la tentative de login, et affiche un message

@@ -12,27 +12,44 @@ pour le détail des choix techniques.
 
 - Connexion à un ou plusieurs switchs connus (`switches.yaml`), avec
   login/mot de passe demandés à chaque session — rien n'est jamais stocké
-  sur disque
-- Ajout/suppression de switchs depuis le dashboard (mode carte)
-- Pools DHCP : liste, ajout, suppression
+  sur disque. Une seule connexion active à la fois par session (se
+  connecter à un switch déconnecte proprement les autres)
+- Dashboard : ajout/suppression de switchs (mode carte), Connecter/
+  Déconnecter par carte
+- Fiche par switch (`/switches/<id>`) :
+  - infos générales (nom/IP), boutons Connecter/Déconnecter/Supprimer
+  - statut du serveur DHCP (activé/désactivé/indéterminé) avec bascule
+    (confirmation à la désactivation, pas de bouton si statut indéterminé)
+  - tableau des pools DHCP (lecture)
+- Pools DHCP : liste, ajout, suppression, tri par IP
 - Réservations statiques : liste, ajout, suppression (formulaire global,
-  sans contrainte de sous-réseau)
+  sans contrainte de sous-réseau), colonne Pool (lien direct pour les
+  réservations dynamiques, déduit par sous-réseau pour les statiques),
+  tri par IP
 - Fiche détaillée par pool (`/pools/<name>`) :
-  - passerelles/DNS éditables
+  - passerelles/DNS/nom de domaine DNS/durée de bail éditables (bail vide
+    = infinite)
   - plages d'adresses (ajout/suppression)
   - baux dynamiques actifs (lien fiable avec le pool)
   - réservations statiques du sous-réseau (détection informative par CIDR)
     avec ajout contraint (IP dans le sous-réseau du pool, masque du pool
     utilisé automatiquement) et suppression
-- Validations à la création (pool comme réservation) : IP/masque bien
-  formés, nom limité à 32 caractères alphanumériques/tirets (limite
-  switch), nom par défaut dérivé automatiquement si laissé vide
+- Validations à la création/édition (pool comme réservation) : IP/masque
+  bien formés, MAC acceptée dans plusieurs notations et convertie au format
+  switch, nom limité à 32 caractères alphanumériques/tirets et dérivé
+  automatiquement si laissé vide (MAC+IP pour une réservation, IP pour un
+  pool — pour limiter le risque d'écraser silencieusement une entrée
+  existante, le nom étant la seule clé d'unicité côté switch), maximum 8
+  passerelles et 8 DNS, durée de bail au format JJ:HH:MM
 - Rafraîchissement manuel + horodatage de dernière mise à jour, sur les
-  pages pools/réservations et sur la fiche pool
+  pages pools/réservations, la fiche pool et la fiche switch
+- Modale de confirmation (libellé adaptable) pour les suppressions et la
+  désactivation du serveur DHCP
 
 Voir [`ARCHITECTURE.md`](ARCHITECTURE.md) pour le détail des choix, y
 compris quelques comportements du switch à connaître (écrasement silencieux
-sur un nom de pool réutilisé, pools sans réseau invisibles dans la liste...).
+sur un nom de pool réutilisé, pools sans réseau invisibles dans la liste,
+lecture du domain-name uniquement via `show running-config`...).
 
 ## Prérequis
 

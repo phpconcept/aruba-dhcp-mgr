@@ -135,9 +135,9 @@ def pool_add(payload: PoolPayload, request: Request):
         return _not_connected()
 
     ip = payload.ip.strip()
-    mask = payload.mask.strip()
-    if not ip or not mask:
-        return {"ok": False, "error": "L'adresse IP réseau et le masque sont requis."}
+    mask = payload.mask.strip() or "255.255.255.0"
+    if not ip:
+        return {"ok": False, "error": "L'adresse IP réseau est requise."}
     if not _valid_ipv4(ip):
         return {"ok": False, "error": f"Adresse IP réseau invalide : « {ip} »."}
     if not _valid_ipv4(mask):

@@ -258,11 +258,11 @@ async function submitAddPool() {
   errorBox.classList.add('d-none');
 
   const ip = document.getElementById('pool-ip').value.trim();
-  const mask = document.getElementById('pool-mask').value.trim();
+  const mask = document.getElementById('pool-mask').value.trim() || '255.255.255.0';
   const name = document.getElementById('pool-name').value.trim();
 
-  if (!ip || !mask) {
-    errorBox.textContent = "L'adresse IP réseau et le masque sont requis.";
+  if (!ip) {
+    errorBox.textContent = "L'adresse IP réseau est requise.";
     errorBox.classList.remove('d-none');
     return;
   }

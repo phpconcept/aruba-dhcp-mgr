@@ -164,12 +164,13 @@ doit indiquer `HTTPS Access : Enabled` (port SSL 443).
   désactivation, pas de bouton si statut indéterminé), tableau des pools —
   voir §9.5 pour la fiabilité du parsing du statut
 - ✅ Fiche pool : nom de domaine DNS et durée de bail (`domain-name`/
-  `lease`, vide = infinite). ⚠️ La **lecture** de `domain_name` est
-  best-effort côté lib (champ REST non confirmé sur switch réel, absent du
-  jeu de test disponible) — à valider : si le champ reste vide en pratique
-  alors qu'un domaine est configuré, le nom du champ REST est à corriger
-  dans `aruba_aos_switch.dhcp.pool_list()`. L'écriture (CLI `domain-name`)
-  est fiable, confirmée par la doc HPE fournie par Vincent.
+  `lease`, vide = infinite). La lecture du `domain_name` s'est avérée non
+  exposée ni par le REST ni par `show dhcp-server pool <name>` (confirmé
+  sur switch réel) — résolu via `dhcp.pool_domain_name()`, qui parse
+  `show running-config` (testé avec un extrait de config réel fourni par
+  Vincent). Appel ponctuel sur la fiche d'un pool, volontairement pas
+  intégré à `pool_list()` (coût d'un `show running-config` complet à ne
+  pas payer en boucle sur toute la liste).
 - ✅ Ajout/suppression de pools DHCP (`pool_add`/`pool_delete`)
 - ✅ Ajout/suppression de réservations DHCP (`binding_add`/`binding_delete`,
   suppression limitée aux réservations statiques — voir §9)

@@ -16,6 +16,8 @@
       <dt class="col-sm-3">Nom</dt><dd class="col-sm-9">{{ switch.name }}</dd>
       <dt class="col-sm-3">Adresse IP</dt><dd class="col-sm-9">{{ switch.host }}</dd>
     </dl>
+    <hr>
+    <div id="switch-actions"></div>
   </div>
 </div>
 
@@ -47,6 +49,7 @@
 {% block scripts %}
 <script>
   const SWITCH_ID = {{ switch_id|tojson }};
+  const SWITCH_NAME = {{ (switch.name if switch else switch_id)|tojson }};
   document.addEventListener('DOMContentLoaded', loadSwitchDetailIfConnected);
   document.addEventListener('adm:switch-connected', loadSwitchDetailIfConnected);
 </script>

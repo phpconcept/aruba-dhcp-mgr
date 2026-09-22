@@ -152,8 +152,7 @@ async function disconnectSwitch(switchId) {
     method: 'POST',
     body: JSON.stringify({ switch_id: switchId }),
   });
-  await refreshStatus();
-  renderDashboardSwitchCards();
+  await refreshCurrentPage();
 }
 
 async function renderDashboardSwitchCards() {
@@ -221,12 +220,20 @@ function deleteSwitch(switchId, switchLabel) {
   confirmAction(`Supprimer le switch "${switchLabel}" de la liste ?`, async () => {
     const result = await apiFetch(`/api/switches/${encodeURIComponent(switchId)}`, { method: 'DELETE' });
     if (!result.ok) {
-      const errorBox = document.getElementById('dashboard-error');
-      errorBox.textContent = result.error || 'Échec de la suppression.';
-      errorBox.classList.remove('d-none');
+      const errorBox = document.getElementById('dashboard-error') || document.getElementById('switch-detail-error');
+      if (errorBox) {
+        errorBox.textContent = result.error || 'Échec de la suppression.';
+        errorBox.classList.remove('d-none');
+      }
       return;
     }
-    location.reload();
+    // Si on supprime le switch depuis sa propre fiche, la page n'a plus lieu
+    // d'être : retour au dashboard plutôt qu'un rechargement sur place.
+    if (window.location.pathname === `/switches/${switchId}`) {
+      window.location.href = '/';
+    } else {
+      location.reload();
+    }
   });
 }
 
@@ -704,6 +711,7 @@ async function loadSwitchDetailIfConnected() {
   const loadingBox = document.getElementById('switch-detail-loading');
   if (!content) return;
   await refreshStatus();
+  renderSwitchActions();
   errorBox.classList.add('d-none');
   content.classList.add('d-none');
 
@@ -734,4 +742,20 @@ async function loadSwitchDetailIfConnected() {
 
   content.classList.remove('d-none');
   setLastUpdated('switch-detail-last-updated');
+}
+
+function renderSwitchActions() {
+  const container = document.getElementById('switch-actions');
+  if (!container) return;
+
+  const isConnected = g_status.connected.includes(SWITCH_ID);
+  const connectBtn = isConnected
+    ? `<button type="button" class="btn btn-sm btn-outline-danger me-2" onclick="disconnectSwitch('${SWITCH_ID}')">Déconnecter</button>`
+    : `<button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="openConnectModal('${SWITCH_ID}')">Connecter</button>`;
+  // Suppression réservée aux switchs déconnectés, comme sur le dashboard.
+  const deleteBtn = isConnected
+    ? ''
+    : `<button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteSwitch('${SWITCH_ID}', '${SWITCH_NAME.replace(/'/g, "\\'")}')">Supprimer</button>`;
+
+  container.innerHTML = connectBtn + deleteBtn;
 }

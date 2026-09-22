@@ -35,6 +35,7 @@ function refreshCurrentPage() {
   if (document.getElementById('pools-table-body')) loadPoolsIfConnected();
   if (document.getElementById('bindings-table-body')) loadBindingsIfConnected();
   if (document.getElementById('pool-detail-content')) loadPoolDetailIfConnected();
+  if (document.getElementById('dashboard-switch-list')) renderDashboardSwitchCards();
 }
 
 function csvToList(value) {
@@ -48,36 +49,25 @@ function switchName(switchId) {
 
 function populateSwitchSelects() {
   const html = AVAILABLE_SWITCHES.map((s) => `<option value="${s.id}">${s.name} (${s.host})</option>`).join('');
-  document.getElementById('switch-picker').innerHTML = html;
   document.getElementById('connect-switch-id').innerHTML = html;
 }
 
 function updateBanner() {
   const banner = document.getElementById('connection-banner');
   const text = document.getElementById('connection-banner-text');
-  const btnConnect = document.getElementById('btn-connect');
-  const btnDisconnect = document.getElementById('btn-disconnect');
-
   const btnRefresh = document.getElementById('btn-refresh');
 
   if (g_status.current && g_status.connected.includes(g_status.current)) {
     banner.classList.remove('alert-warning');
     banner.classList.add('alert-success');
     text.textContent = `Connecté à ${switchName(g_status.current)}`;
-    btnConnect.textContent = 'Changer de switch';
-    btnDisconnect.classList.remove('d-none');
     btnRefresh.classList.remove('d-none');
   } else {
     banner.classList.remove('alert-success');
     banner.classList.add('alert-warning');
     text.textContent = 'Aucun switch connecté';
-    btnConnect.textContent = 'Se connecter';
-    btnDisconnect.classList.add('d-none');
     btnRefresh.classList.add('d-none');
   }
-
-  const picker = document.getElementById('switch-picker');
-  if (g_status.current) picker.value = g_status.current;
 }
 
 async function refreshStatus() {
@@ -89,8 +79,7 @@ async function refreshStatus() {
 function openConnectModal(switchId) {
   document.getElementById('modal-connect-error').classList.add('d-none');
   document.getElementById('connect-password').value = '';
-  const target = switchId || document.getElementById('switch-picker').value;
-  if (target) document.getElementById('connect-switch-id').value = target;
+  if (switchId) document.getElementById('connect-switch-id').value = switchId;
   new bootstrap.Modal(document.getElementById('modal-connect')).show();
 }
 
@@ -117,36 +106,43 @@ async function submitConnect() {
   document.dispatchEvent(new CustomEvent('adm:switch-connected', { detail: { switchId } }));
 }
 
-async function submitDisconnect() {
-  if (!g_status.current) return;
+async function disconnectSwitch(switchId) {
   await apiFetch('/api/switch/disconnect', {
     method: 'POST',
-    body: JSON.stringify({ switch_id: g_status.current }),
+    body: JSON.stringify({ switch_id: switchId }),
   });
   await refreshStatus();
+  renderDashboardSwitchCards();
 }
 
-function renderDashboardSwitchCards() {
+async function renderDashboardSwitchCards() {
   const container = document.getElementById('dashboard-switch-list');
   if (!container) return;
+  await refreshStatus();
 
   if (AVAILABLE_SWITCHES.length === 0) {
     container.innerHTML = '<p class="text-muted">Aucun switch enregistré pour l\'instant.</p>';
     return;
   }
 
-  container.innerHTML = AVAILABLE_SWITCHES.map((s) => `
+  container.innerHTML = AVAILABLE_SWITCHES.map((s) => {
+    const isConnected = g_status.connected.includes(s.id);
+    const connectBtn = isConnected
+      ? `<button type="button" class="btn btn-sm btn-outline-danger me-2" onclick="disconnectSwitch('${s.id}')">Déconnecter</button>`
+      : `<button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="openConnectModal('${s.id}')">Connecter</button>`;
+    return `
     <div class="col-md-4">
-      <div class="card">
+      <div class="card ${isConnected ? 'border-success' : ''}">
         <div class="card-body">
           <h5 class="card-title">${s.name}</h5>
           <p class="card-text text-muted">${s.host}</p>
-          <button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="openConnectModal('${s.id}')">Connecter</button>
+          ${connectBtn}
           <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteSwitch('${s.id}', '${s.name.replace(/'/g, "\\'")}')">Supprimer</button>
         </div>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function openAddSwitchModal() {
@@ -388,8 +384,6 @@ function confirmAction(message, onConfirm) {
 document.addEventListener('DOMContentLoaded', () => {
   populateSwitchSelects();
   refreshStatus();
-  document.getElementById('btn-connect').addEventListener('click', openConnectModal);
-  document.getElementById('btn-disconnect').addEventListener('click', submitDisconnect);
   document.getElementById('btn-connect-submit').addEventListener('click', submitConnect);
   document.getElementById('btn-refresh').addEventListener('click', refreshCurrentPage);
   document.getElementById('btn-confirm-submit').addEventListener('click', async () => {

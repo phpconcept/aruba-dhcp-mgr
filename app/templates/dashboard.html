@@ -38,6 +38,7 @@
 {% block scripts %}
 <script>
   document.addEventListener('DOMContentLoaded', renderDashboardSwitchCards);
+  document.addEventListener('adm:switch-connected', renderDashboardSwitchCards);
   document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-add-switch').addEventListener('click', openAddSwitchModal);
     document.getElementById('btn-add-switch-submit').addEventListener('click', submitAddSwitch);

@@ -41,6 +41,25 @@
     </div>
   </div>
 
+  <!--
+    Reprend le même tableau que la page /pools globale (en doublon
+    volontaire, pour avoir une vue d'ensemble directement depuis la fiche
+    switch) — sans le bouton d'ajout ni la colonne suppression, gérés
+    depuis /pools ou la fiche de chaque pool.
+  -->
+  <div class="card mb-3">
+    <div class="card-header">Pools DHCP</div>
+    <div class="card-body">
+      <div id="switch-pools-error" class="alert alert-danger d-none"></div>
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Nom</th><th>Réseau</th><th>Masque</th><th>Passerelles</th><th>DNS</th><th>Plages</th></tr></thead>
+        <tbody id="switch-pools-table-body">
+          <tr><td colspan="6" class="text-muted">Aucun pool configuré.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <p id="switch-detail-last-updated" class="text-muted small"></p>
 </div>
 

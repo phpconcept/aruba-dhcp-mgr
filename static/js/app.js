@@ -237,6 +237,23 @@ function deleteSwitch(switchId, switchLabel) {
 // Pools DHCP
 // ------------------------------------------------------------------
 
+function poolRowHtml(p, withDelete) {
+  const deleteCell = withDelete
+    ? `<td><button type="button" class="btn btn-sm btn-outline-danger" onclick="deletePool('${p.name}')">Supprimer</button></td>`
+    : '';
+  return `
+    <tr>
+      <td><a href="/pools/${encodeURIComponent(p.name)}">${p.name}</a></td>
+      <td>${p.ip || ''}</td>
+      <td>${p.mask || ''}</td>
+      <td>${p.default_gateways.join(', ')}</td>
+      <td>${p.dns_servers.join(', ')}</td>
+      <td>${p.ip_ranges.map((r) => `${r.ip_start} - ${r.ip_end}`).join('<br>')}</td>
+      ${deleteCell}
+    </tr>
+  `;
+}
+
 async function loadPoolsIfConnected() {
   const tbody = document.getElementById('pools-table-body');
   const errorBox = document.getElementById('pools-error');
@@ -265,17 +282,7 @@ async function loadPoolsIfConnected() {
     return;
   }
 
-  tbody.innerHTML = result.pools.map((p) => `
-    <tr>
-      <td><a href="/pools/${encodeURIComponent(p.name)}">${p.name}</a></td>
-      <td>${p.ip || ''}</td>
-      <td>${p.mask || ''}</td>
-      <td>${p.default_gateways.join(', ')}</td>
-      <td>${p.dns_servers.join(', ')}</td>
-      <td>${p.ip_ranges.map((r) => `${r.ip_start} - ${r.ip_end}`).join('<br>')}</td>
-      <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="deletePool('${p.name}')">Supprimer</button></td>
-    </tr>
-  `).join('');
+  tbody.innerHTML = result.pools.map((p) => poolRowHtml(p, true)).join('');
 }
 
 function openAddPoolModal() {
@@ -736,6 +743,8 @@ async function loadSwitchDetailIfConnected() {
     badge.innerHTML = '<span class="badge bg-warning text-dark">Indéterminé</span> <span class="text-muted small">(format de sortie switch non reconnu)</span>';
   }
 
+  await loadSwitchPoolsTable();
+
   content.classList.remove('d-none');
   setLastUpdated('switch-detail-last-updated');
 }
@@ -754,4 +763,24 @@ function renderSwitchActions() {
     : `<button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteSwitch('${SWITCH_ID}', '${SWITCH_NAME.replace(/'/g, "\\'")}')">Supprimer</button>`;
 
   container.innerHTML = connectBtn + deleteBtn;
+}
+
+async function loadSwitchPoolsTable() {
+  const tbody = document.getElementById('switch-pools-table-body');
+  const errorBox = document.getElementById('switch-pools-error');
+  if (!tbody) return;
+  errorBox.classList.add('d-none');
+  tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Chargement en cours...</td></tr>';
+
+  const result = await apiFetch(`/api/pools?switch_id=${SWITCH_ID}`);
+  if (!result.ok) {
+    errorBox.textContent = result.error;
+    errorBox.classList.remove('d-none');
+    tbody.innerHTML = '';
+    return;
+  }
+
+  tbody.innerHTML = result.pools.length === 0
+    ? '<tr><td colspan="6" class="text-muted">Aucun pool configuré.</td></tr>'
+    : result.pools.map((p) => poolRowHtml(p, false)).join('');
 }

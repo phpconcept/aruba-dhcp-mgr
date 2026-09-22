@@ -86,11 +86,11 @@ async function refreshStatus() {
   return g_status;
 }
 
-function openConnectModal() {
+function openConnectModal(switchId) {
   document.getElementById('modal-connect-error').classList.add('d-none');
   document.getElementById('connect-password').value = '';
-  const picker = document.getElementById('switch-picker');
-  if (picker.value) document.getElementById('connect-switch-id').value = picker.value;
+  const target = switchId || document.getElementById('switch-picker').value;
+  if (target) document.getElementById('connect-switch-id').value = target;
   new bootstrap.Modal(document.getElementById('modal-connect')).show();
 }
 
@@ -141,6 +141,7 @@ function renderDashboardSwitchCards() {
         <div class="card-body">
           <h5 class="card-title">${s.name}</h5>
           <p class="card-text text-muted">${s.host}</p>
+          <button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="openConnectModal('${s.id}')">Connecter</button>
           <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteSwitch('${s.id}', '${s.name.replace(/'/g, "\\'")}')">Supprimer</button>
         </div>
       </div>

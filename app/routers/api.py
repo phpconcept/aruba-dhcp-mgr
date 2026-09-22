@@ -121,6 +121,27 @@ def switch_dhcp_status(switch_id: str, request: Request):
     return {"ok": True, "dhcp_enabled": enabled}
 
 
+class DhcpTogglePayload(BaseModel):
+    switch_id: str
+    enabled: bool
+
+
+@router.post("/switches/{switch_id}/dhcp-status")
+def switch_dhcp_toggle(switch_id: str, payload: DhcpTogglePayload, request: Request):
+    client = _get_connected_client(request, payload.switch_id)
+    if client is None:
+        return _not_connected()
+    try:
+        if payload.enabled:
+            dhcp.server_enable(client)
+        else:
+            dhcp.server_disable(client)
+        enabled = dhcp.server_status(client)
+    except AosSwitchError as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": True, "dhcp_enabled": enabled}
+
+
 # ----------------------------------------------------------------------
 # Pools DHCP
 # ----------------------------------------------------------------------

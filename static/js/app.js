@@ -765,10 +765,14 @@ async function loadSwitchDetailIfConnected() {
 
   const badge = document.getElementById('dhcp-status-badge');
   if (result.dhcp_enabled === true) {
-    badge.innerHTML = '<span class="badge bg-success">Activé</span>';
+    badge.innerHTML = '<span class="badge bg-success me-2">Activé</span>'
+      + '<button type="button" class="btn btn-sm btn-outline-danger" onclick="toggleDhcpServer(false)">Désactiver</button>';
   } else if (result.dhcp_enabled === false) {
-    badge.innerHTML = '<span class="badge bg-secondary">Désactivé</span>';
+    badge.innerHTML = '<span class="badge bg-secondary me-2">Désactivé</span>'
+      + '<button type="button" class="btn btn-sm btn-outline-success" onclick="toggleDhcpServer(true)">Activer</button>';
   } else {
+    // Statut indéterminé : pas de bouton de bascule, trop risqué d'agir
+    // sur un état qu'on n'a pas su lire avec certitude.
     badge.innerHTML = '<span class="badge bg-warning text-dark">Indéterminé</span> <span class="text-muted small">(format de sortie switch non reconnu)</span>';
   }
 
@@ -812,4 +816,32 @@ async function loadSwitchPoolsTable() {
   tbody.innerHTML = result.pools.length === 0
     ? '<tr><td colspan="6" class="text-muted">Aucun pool configuré.</td></tr>'
     : result.pools.map((p) => poolRowHtml(p, false)).join('');
+}
+
+function toggleDhcpServer(newState) {
+  const doToggle = async () => {
+    const errorBox = document.getElementById('switch-detail-error');
+    errorBox.classList.add('d-none');
+    const result = await apiFetch(`/api/switches/${encodeURIComponent(SWITCH_ID)}/dhcp-status`, {
+      method: 'POST',
+      body: JSON.stringify({ switch_id: SWITCH_ID, enabled: newState }),
+    });
+    if (!result.ok) {
+      errorBox.textContent = result.error || 'Échec de la bascule du serveur DHCP.';
+      errorBox.classList.remove('d-none');
+      return;
+    }
+    await loadSwitchDetailIfConnected();
+  };
+
+  if (newState) {
+    doToggle();
+  } else {
+    // Désactiver coupe la distribution DHCP sur tous les VLANs concernés
+    // par ce switch : action impactante, confirmation obligatoire.
+    confirmAction(
+      "Désactiver le serveur DHCP sur ce switch ? Cela coupera la distribution DHCP sur tous les VLANs concernés.",
+      doToggle
+    );
+  }
 }

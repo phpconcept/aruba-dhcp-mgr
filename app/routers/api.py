@@ -190,6 +190,10 @@ def pool_add(payload: PoolPayload, request: Request):
     if name_error:
         return {"ok": False, "error": name_error}
 
+    limits_error = _validate_gateways_and_dns(payload.default_gateways, payload.dns_servers)
+    if limits_error:
+        return {"ok": False, "error": limits_error}
+
     try:
         dhcp.pool_add(
             client,
@@ -273,6 +277,11 @@ def pool_edit(name: str, payload: PoolEditPayload, request: Request):
     client = _get_connected_client(request, payload.switch_id)
     if client is None:
         return _not_connected()
+
+    limits_error = _validate_gateways_and_dns(payload.default_gateways, payload.dns_servers)
+    if limits_error:
+        return {"ok": False, "error": limits_error}
+
     try:
         dhcp.pool_edit(
             client,
@@ -323,6 +332,25 @@ def _valid_ipv4(value: str) -> bool:
         return True
     except ValueError:
         return False
+
+
+_MAX_GATEWAYS_OR_DNS = 8  # limite ArubaOS-Switch (max 8 default-router / 8 dns-server)
+
+
+def _validate_gateways_and_dns(default_gateways: list[str], dns_servers: list[str]) -> str | None:
+    """Renvoie un message d'erreur si l'une des deux listes dépasse la
+    limite switch (8 max chacune), sinon None."""
+    if len(default_gateways) > _MAX_GATEWAYS_OR_DNS:
+        return (
+            f"Trop de passerelles ({len(default_gateways)}) — "
+            f"{_MAX_GATEWAYS_OR_DNS} maximum."
+        )
+    if len(dns_servers) > _MAX_GATEWAYS_OR_DNS:
+        return (
+            f"Trop de serveurs DNS ({len(dns_servers)}) — "
+            f"{_MAX_GATEWAYS_OR_DNS} maximum."
+        )
+    return None
 
 
 _MAC_CLEAN_RE = re.compile(r"^[0-9A-F]{12}$")

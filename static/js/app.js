@@ -60,6 +60,17 @@ function isValidName(value) {
 }
 
 const NAME_MAX_LENGTH = 32; // limite ArubaOS-Switch sur le nom d'un pool DHCP
+const MAX_GATEWAYS_OR_DNS = 8; // limite ArubaOS-Switch (max 8 default-router / 8 dns-server)
+
+function gatewaysDnsLimitError(defaultGateways, dnsServers) {
+  if (defaultGateways.length > MAX_GATEWAYS_OR_DNS) {
+    return `Trop de passerelles (${defaultGateways.length}) — ${MAX_GATEWAYS_OR_DNS} maximum.`;
+  }
+  if (dnsServers.length > MAX_GATEWAYS_OR_DNS) {
+    return `Trop de serveurs DNS (${dnsServers.length}) — ${MAX_GATEWAYS_OR_DNS} maximum.`;
+  }
+  return null;
+}
 
 function nameValidationError(name) {
   if (!isValidName(name)) {
@@ -325,13 +336,22 @@ async function submitAddPool() {
     }
   }
 
+  const defaultGateways = csvToList(document.getElementById('pool-gateways').value);
+  const dnsServers = csvToList(document.getElementById('pool-dns').value);
+  const limitsError = gatewaysDnsLimitError(defaultGateways, dnsServers);
+  if (limitsError) {
+    errorBox.textContent = limitsError;
+    errorBox.classList.remove('d-none');
+    return;
+  }
+
   const payload = {
     switch_id: g_status.current,
     name,
     ip,
     mask,
-    default_gateways: csvToList(document.getElementById('pool-gateways').value),
-    dns_servers: csvToList(document.getElementById('pool-dns').value),
+    default_gateways: defaultGateways,
+    dns_servers: dnsServers,
   };
 
   const result = await apiFetch('/api/pools', { method: 'POST', body: JSON.stringify(payload) });
@@ -685,10 +705,20 @@ function deletePoolBinding(name) {
 async function submitSavePool() {
   const errorBox = document.getElementById('detail-edit-error');
   errorBox.classList.add('d-none');
+
+  const defaultGateways = csvToList(document.getElementById('detail-gateways').value);
+  const dnsServers = csvToList(document.getElementById('detail-dns').value);
+  const limitsError = gatewaysDnsLimitError(defaultGateways, dnsServers);
+  if (limitsError) {
+    errorBox.textContent = limitsError;
+    errorBox.classList.remove('d-none');
+    return;
+  }
+
   const payload = {
     switch_id: g_status.current,
-    default_gateways: csvToList(document.getElementById('detail-gateways').value),
-    dns_servers: csvToList(document.getElementById('detail-dns').value),
+    default_gateways: defaultGateways,
+    dns_servers: dnsServers,
   };
   const result = await apiFetch(`/api/pools/${encodeURIComponent(POOL_NAME)}`, { method: 'PUT', body: JSON.stringify(payload) });
   if (!result.ok) {

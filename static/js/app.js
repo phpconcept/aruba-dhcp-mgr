@@ -42,6 +42,17 @@ function csvToList(value) {
   return value.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
 }
 
+function isValidIPv4(value) {
+  const m = value.trim().match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!m) return false;
+  return m.slice(1).every((octet) => Number(octet) >= 0 && Number(octet) <= 255);
+}
+
+function isValidMac(value) {
+  const cleaned = value.trim().toUpperCase().replace(/[:\-.]/g, '');
+  return /^[0-9A-F]{12}$/.test(cleaned);
+}
+
 function switchName(switchId) {
   const sw = AVAILABLE_SWITCHES.find((s) => s.id === switchId);
   return sw ? sw.name : switchId;
@@ -338,12 +349,26 @@ async function submitAddBinding() {
   const errorBox = document.getElementById('modal-add-binding-error');
   errorBox.classList.add('d-none');
 
+  const ip = document.getElementById('binding-ip').value.trim();
+  const mac = document.getElementById('binding-mac').value.trim();
+
+  if (!isValidIPv4(ip)) {
+    errorBox.textContent = `Adresse IP invalide : « ${ip} ».`;
+    errorBox.classList.remove('d-none');
+    return;
+  }
+  if (!isValidMac(mac)) {
+    errorBox.textContent = `Adresse MAC invalide : « ${mac} ».`;
+    errorBox.classList.remove('d-none');
+    return;
+  }
+
   const payload = {
     switch_id: g_status.current,
-    name: document.getElementById('binding-name').value,
-    mac: document.getElementById('binding-mac').value,
-    ip: document.getElementById('binding-ip').value,
-    ip_mask: document.getElementById('binding-ip-mask').value,
+    name: document.getElementById('binding-name').value.trim(),
+    mac,
+    ip,
+    ip_mask: document.getElementById('binding-ip-mask').value.trim(),
   };
 
   const result = await apiFetch('/api/bindings', { method: 'POST', body: JSON.stringify(payload) });

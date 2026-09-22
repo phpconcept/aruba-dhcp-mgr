@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ipaddress
+import re
 from dataclasses import asdict
 
 from fastapi import APIRouter, Request
@@ -259,6 +260,37 @@ def pool_range_delete(name: str, switch_id: str, ip_start: str, ip_end: str, req
     return {"ok": True}
 
 
+def _valid_ipv4(value: str) -> bool:
+    try:
+        ipaddress.IPv4Address(value.strip())
+        return True
+    except ValueError:
+        return False
+
+
+_MAC_CLEAN_RE = re.compile(r"^[0-9A-F]{12}$")
+
+
+def _normalize_mac(raw: str) -> tuple[str, str] | None:
+    """
+    Valide une adresse MAC en acceptant plusieurs notations courantes
+    (AA:BB:CC:DD:EE:FF, AA-BB-CC-DD-EE-FF, AABBCC-DDEEFF, ou 12 caractères
+    hexa bruts). Renvoie (format_switch, format_affichage), ou None si la
+    valeur n'est pas exploitable.
+
+    Le format switch (« aabbcc-ddeeff ») est celui attendu tel quel par
+    dhcp.binding_add() dans la commande CLI ArubaOS — la lib ne fait aucune
+    conversion de son côté, c'est donc à l'appelant de fournir déjà le bon
+    format.
+    """
+    cleaned = raw.strip().upper().replace(":", "").replace("-", "").replace(".", "")
+    if not _MAC_CLEAN_RE.match(cleaned):
+        return None
+    switch_format = f"{cleaned[0:6]}-{cleaned[6:12]}".lower()
+    display_format = ":".join(cleaned[i : i + 2] for i in range(0, 12, 2))
+    return switch_format, display_format
+
+
 # ----------------------------------------------------------------------
 # Réservations (bindings) DHCP
 # ----------------------------------------------------------------------
@@ -278,10 +310,10 @@ def bindings_list(switch_id: str, request: Request):
 
 class BindingPayload(BaseModel):
     switch_id: str
-    name: str
+    name: str = ""
     mac: str
     ip: str
-    ip_mask: str
+    ip_mask: str = ""
 
 
 @router.post("/bindings")
@@ -289,8 +321,24 @@ def binding_add(payload: BindingPayload, request: Request):
     client = _get_connected_client(request, payload.switch_id)
     if client is None:
         return _not_connected()
+
+    ip = payload.ip.strip()
+    if not _valid_ipv4(ip):
+        return {"ok": False, "error": f"Adresse IP invalide : « {payload.ip} »."}
+
+    mac_formats = _normalize_mac(payload.mac)
+    if mac_formats is None:
+        return {"ok": False, "error": f"Adresse MAC invalide : « {payload.mac} »."}
+    mac_switch_format, mac_display_format = mac_formats
+
+    ip_mask = payload.ip_mask.strip() or "255.255.255.0"
+    if not _valid_ipv4(ip_mask):
+        return {"ok": False, "error": f"Masque invalide : « {payload.ip_mask} »."}
+
+    name = payload.name.strip() or mac_display_format
+
     try:
-        dhcp.binding_add(client, payload.name, payload.mac, payload.ip, payload.ip_mask)
+        dhcp.binding_add(client, name, mac_switch_format, ip, ip_mask)
     except AosSwitchError as exc:
         return {"ok": False, "error": str(exc)}
     return {"ok": True}

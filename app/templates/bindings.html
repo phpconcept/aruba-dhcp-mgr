@@ -27,19 +27,20 @@
       <div class="modal-body">
         <div id="modal-add-binding-error" class="alert alert-danger d-none"></div>
         <div class="mb-3">
-          <label class="form-label">Nom</label>
+          <label class="form-label">Nom <span class="text-muted small">(optionnel — par défaut, l'adresse MAC)</span></label>
           <input type="text" id="binding-name" class="form-control">
         </div>
         <div class="mb-3">
           <label class="form-label">Adresse MAC</label>
           <input type="text" id="binding-mac" class="form-control" placeholder="AA:BB:CC:DD:EE:FF">
+          <div class="form-text">Formats acceptés : AA:BB:CC:DD:EE:FF, AA-BB-CC-DD-EE-FF, aabbcc-ddeeff.</div>
         </div>
         <div class="mb-3">
           <label class="form-label">IP réservée</label>
           <input type="text" id="binding-ip" class="form-control" placeholder="192.168.30.10">
         </div>
         <div class="mb-3">
-          <label class="form-label">Masque</label>
+          <label class="form-label">Masque <span class="text-muted small">(optionnel — par défaut 255.255.255.0)</span></label>
           <input type="text" id="binding-ip-mask" class="form-control" placeholder="255.255.255.0">
         </div>
       </div>

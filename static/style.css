@@ -4,3 +4,17 @@ body {
 .navbar-text select {
   min-width: 180px;
 }
+
+/* Lien "discret" : garde la couleur du texte normal, juste le curseur
+   change pour indiquer que c'est cliquable (utilisé pour le nom du switch
+   sur les cartes du dashboard). */
+.link-discreet {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.link-discreet:hover,
+.link-discreet:focus {
+  color: inherit;
+  text-decoration: none;
+}

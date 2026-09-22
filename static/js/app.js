@@ -180,7 +180,7 @@ async function renderDashboardSwitchCards() {
     <div class="col-md-4">
       <div class="card ${isConnected ? 'border-success' : ''}">
         <div class="card-body">
-          <h5 class="card-title"><a href="/switches/${encodeURIComponent(s.id)}">${s.name}</a></h5>
+          <h5 class="card-title"><a href="/switches/${encodeURIComponent(s.id)}" class="link-discreet">${s.name}</a></h5>
           <p class="card-text text-muted">${s.host}</p>
           ${connectBtn}
           ${deleteBtn}

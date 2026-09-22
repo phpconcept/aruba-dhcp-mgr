@@ -843,7 +843,7 @@ function toggleDhcpServer(newState) {
     confirmAction(
       "Désactiver le serveur DHCP sur ce switch ? Cela coupera la distribution DHCP sur tous les VLANs concernés.",
       doToggle,
-      'Éteindre'
+      'Désactiver'
     );
   }
 }

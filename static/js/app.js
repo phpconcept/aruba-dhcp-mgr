@@ -243,7 +243,7 @@ function poolRowHtml(p, withDelete) {
     : '';
   return `
     <tr>
-      <td><a href="/pools/${encodeURIComponent(p.name)}">${p.name}</a></td>
+      <td><a href="/pools/${encodeURIComponent(p.name)}" class="link-discreet">${p.name}</a></td>
       <td>${p.ip || ''}</td>
       <td>${p.mask || ''}</td>
       <td>${p.default_gateways.join(', ')}</td>
@@ -517,6 +517,11 @@ async function loadPoolDetailIfConnected() {
   await refreshStatus();
   errorBox.classList.add('d-none');
   content.classList.add('d-none');
+
+  const switchLinkBox = document.getElementById('pool-detail-switch-link');
+  switchLinkBox.innerHTML = g_status.current
+    ? `<a href="/switches/${encodeURIComponent(g_status.current)}" class="btn btn-outline-secondary btn-sm me-2">Serveur DHCP</a>`
+    : '';
 
   if (!g_status.current) {
     errorBox.textContent = 'Connectez-vous à un switch pour afficher ce pool.';

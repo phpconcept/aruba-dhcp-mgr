@@ -1,0 +1,153 @@
+# Architecture — Aruba DHCP Manager
+
+Ce document résume les choix faits et l'implémentation, pour reprendre le
+projet plus tard sans avoir à tout redécouvrir.
+
+Dernière mise à jour : 22/09/2026 — après validation d'une connexion réelle
+(pools + réservations) sur un switch de labo.
+
+## 1. Objectif du projet
+
+Frontal web pour configurer le serveur DHCP d'un switch **HPE Aruba
+ArubaOS-Switch (AOS-S)**, en particulier un 2930. Portage/réécriture des
+principes d'un ancien projet PHP (`ArubaDhcpMgt`, framework maison "pae/adm")
+vers Python/FastAPI, hébergé sur **Mowgli** (`192.168.22.25`, Debian 13).
+
+Le projet s'appuie sur la librairie séparée **`aruba-aos-switch`**
+(`/var/dev/aruba-aos-switch`, voir son propre `DESIGN.md`), qui porte la
+logique de connexion et les fonctions DHCP (`pool_list`, `pool_add`,
+`binding_list`, ...). `aruba-dhcp-mgr` ne fait que l'habillage web ; les deux
+projets sont volontairement séparés (repos distincts) pour que la lib reste
+réutilisable par d'autres futurs projets (VLANs, interfaces...) sans traîner
+de dépendance FastAPI/Jinja2.
+
+## 2. Choix techniques et pourquoi
+
+| Choix | Raison |
+|---|---|
+| **FastAPI + Jinja2 + Bootstrap 5** | Cohérent avec `inventory-dashboard`, plutôt que de reproduire à l'identique la stack de l'ancien PHP (w3.css/Bootstrap 3/jQuery) — validé avec Vincent. |
+| **Aucune donnée persistée (pas de SQLite)** | Seul `switches.yaml` est sur disque (nom + IP des switchs connus, aucun secret). Cohérent avec le principe d'origine du PHP : les identifiants ne sont jamais stockés. |
+| **Login/mot de passe redemandés à chaque session** | Popup de connexion (équivalent de la modale `server_select` du PHP) à chaque nouvelle session navigateur. |
+| **Connexion switch gardée en mémoire process, pas en base** | `app/switch_session.py` : dict `{session_id: {switch_id: AosSwitchClient}}`. Un redémarrage du service déconnecte tout le monde — choix assumé, comme le "Restart Session" du PHP. |
+| **Multi-switch dès la v1** | Le registre est à deux niveaux (session → switch_id → client) et `switches.yaml` liste plusieurs switchs possibles, pour éviter une V2 qui casserait ce modèle. |
+| **Session cookie signé (`itsdangerous`/`SessionMiddleware`)** | Ne contient qu'un identifiant de session opaque (`sid`), jamais d'identifiants. Clé de signature régénérée à chaque démarrage du service (cohérent avec le fait que les connexions en mémoire ne survivent de toute façon pas à un redémarrage). |
+| **Pas d'authentification sur l'appli elle-même** | Cohérent avec le reste de l'infra Mowgli (LAN fermé, mono-utilisateur), comme `inventory-dashboard`. |
+
+## 3. Arborescence du projet
+
+```
+/var/dev/aruba-dhcp-mgr/
+├── app/
+│   ├── main.py              # point d'entrée FastAPI, SessionMiddleware
+│   ├── config.py            # chargement de switches.yaml (nom/IP des switchs connus)
+│   ├── switch_session.py    # registre en mémoire des connexions switch actives
+│   ├── routers/
+│   │   ├── web.py           # pages HTML : /, /pools, /bindings
+│   │   └── api.py           # API JSON (JS) : connect/disconnect, lecture pools/bindings
+│   └── templates/
+│       ├── base.html        # layout commun (navbar, bandeau de connexion, modale connexion)
+│       ├── dashboard.html
+│       ├── pools.html
+│       └── bindings.html
+├── static/
+│   ├── js/app.js             # connexion switch, chargement pools/bindings en AJAX
+│   └── style.css
+├── switches.yaml             # liste des switchs connus (nom, IP) — pas de secrets
+├── deploy/                   # (à venir : unité systemd, cf. §6)
+├── requirements.txt
+├── .gitignore
+└── ARCHITECTURE.md           # ce fichier
+```
+
+## 4. Modèle de connexion switch
+
+- Chaque switch connu est déclaré dans `switches.yaml` (`id`, `name`, `host`).
+- La popup "Se connecter à un switch" envoie `POST /api/switch/connect`
+  `{switch_id, username, password}`. Le backend instancie un
+  `AosSwitchClient(host, username, password)` et appelle `.login()` tout de
+  suite pour valider les identifiants avant de considérer la session comme
+  connectée.
+- En cas d'échec (switch injoignable, identifiants refusés), l'exception
+  `aruba_aos_switch.exceptions.AosSwitchError` est interceptée et son
+  message renvoyé tel quel dans `{"ok": false, "error": "..."}`, affiché
+  dans la popup — voir §7 pour le cas rencontré en pratique.
+- Une fois connecté, `switch_id` devient le "switch courant" de la session
+  (`request.session["current_switch_id"]`), affiché dans le bandeau
+  vert/rouge en haut de page. Les pages Pools/Bindings interrogent ce switch
+  courant.
+
+## 5. Points d'accès
+
+| Route | Méthode | Usage |
+|---|---|---|
+| `/` | GET | Dashboard : liste des switchs connus |
+| `/pools` | GET | Page HTML : liste des pools DHCP du switch courant |
+| `/bindings` | GET | Page HTML : liste des réservations DHCP du switch courant |
+| `/api/switch/connect` | POST | Connexion à un switch (voir §4) |
+| `/api/switch/disconnect` | POST | Déconnexion (logout switch + oubli du client en mémoire) |
+| `/api/switch/status` | GET | `{connected: [...], current: ...}` pour la session en cours |
+| `/api/pools` | GET | Liste JSON des pools DHCP (`?switch_id=...`) |
+| `/api/bindings` | GET | Liste JSON des réservations DHCP (`?switch_id=...`) |
+| `/docs` | GET | Documentation interactive Swagger (auto-générée par FastAPI) |
+
+**État actuel (v1) : lecture seule.** `pool_add`/`pool_edit`/`pool_delete` et
+`binding_add`/`binding_delete` existent déjà côté lib `aruba-aos-switch` mais
+ne sont pas encore branchés côté web — prévu en itération suivante (voir §8).
+
+## 6. Déploiement
+
+**Pas encore fait.** Pour l'instant, lancé manuellement en `nohup` pour les
+tests :
+```bash
+cd /var/dev/aruba-dhcp-mgr
+.venv/bin/uvicorn app.main:app --host 192.168.22.25 --port 8002
+```
+Port `8002` retenu car `8000` (`jeedom-mcp-server`) et `8001`
+(`inventory-dashboard`) sont déjà pris.
+
+À faire quand le socle sera validé : utilisateur système dédié
+(`svc-dhcp-mgr`, même schéma que `svc-dashboard` dans `inventory-dashboard`)
+et unité systemd dans `deploy/aruba-dhcp-mgr.service`.
+
+## 7. Point de configuration switch à connaître (troubleshooting)
+
+⚠️ Lors du premier test sur un switch réel, la connexion échouait avec :
+```
+Impossible de joindre <ip> (POST login-sessions) :
+HTTPSConnectionPool(...): Max retries exceeded ...
+Failed to establish a new connection: [Errno 111] Connection refused
+```
+**Diagnostic** : `Connection refused` (pas un timeout) sur le port 443 =
+rien n'écoute en HTTPS côté switch, pas un souci réseau/pare-feu. Vérifié en
+testant les ports depuis Mowgli (`80` ouvert, `443` fermé) : le web
+management HTTP était actif, mais pas HTTPS/le certificat/l'API REST.
+
+**Résolu** en activant côté switch la configuration certificat + SSL + REST
+API (management HTTPS). Une fois cette conf faite, connexion, lecture des
+pools et des réservations fonctionnent bien.
+
+**À faire plus tard** :
+- Documenter ici la ou les commandes CLI exactes ArubaOS-Switch qui ont
+  résolu le problème (certificat, `web-management ssl`, activation REST API),
+  une fois qu'on les aura reprises précisément — pour ne pas avoir à
+  redécouvrir sur le prochain switch à configurer.
+- Éventuellement, un petit outil/page de troubleshooting côté
+  `aruba-dhcp-mgr` (ou dans la lib `aruba-aos-switch`) qui teste la
+  joignabilité HTTPS/REST avant la tentative de login, et affiche un message
+  ciblé ("HTTPS non actif sur le switch" plutôt que l'erreur `requests` brute)
+  — utile si un jour d'autres switchs sont ajoutés avec le même défaut de
+  config initiale.
+- `AosSwitchClient` accepte déjà un paramètre `scheme` ("http"/"https") si
+  jamais un switch ne peut pas avoir HTTPS activé — pas branché dans
+  `switches.yaml` pour l'instant (ajout rapide si le besoin se présente).
+
+## 8. Pistes pour la suite
+
+- Formulaires d'ajout/édition/suppression de pools DHCP (`pool_add`,
+  `pool_edit`, `pool_delete` déjà dispo côté lib)
+- Ajout/suppression de réservations DHCP (`binding_add`, `binding_delete`
+  déjà dispo côté lib)
+- Déploiement propre : utilisateur système dédié + unité systemd (voir §6)
+- Doc/outil de troubleshooting connexion switch (voir §7)
+- Support `scheme: http` par switch dans `switches.yaml`, si un switch ne
+  peut pas avoir HTTPS activé

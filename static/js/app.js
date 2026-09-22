@@ -58,6 +58,18 @@ function isValidName(value) {
   return /^[A-Za-z0-9-]+$/.test(value.trim());
 }
 
+const NAME_MAX_LENGTH = 32; // limite ArubaOS-Switch sur le nom d'un pool DHCP
+
+function nameValidationError(name) {
+  if (!isValidName(name)) {
+    return `Nom invalide : « ${name} » (lettres, chiffres et tirets uniquement).`;
+  }
+  if (name.length > NAME_MAX_LENGTH) {
+    return `Nom trop long : « ${name} » (${name.length} caractères, ${NAME_MAX_LENGTH} max).`;
+  }
+  return null;
+}
+
 function ipToInt(ip) {
   return ip.split('.').reduce((acc, octet) => (acc * 256) + Number(octet), 0);
 }
@@ -288,10 +300,13 @@ async function submitAddPool() {
     errorBox.classList.remove('d-none');
     return;
   }
-  if (name && !isValidName(name)) {
-    errorBox.textContent = `Nom invalide : « ${name} » (lettres, chiffres et tirets uniquement).`;
-    errorBox.classList.remove('d-none');
-    return;
+  if (name) {
+    const nameError = nameValidationError(name);
+    if (nameError) {
+      errorBox.textContent = nameError;
+      errorBox.classList.remove('d-none');
+      return;
+    }
   }
 
   const payload = {
@@ -404,10 +419,13 @@ async function submitAddBinding() {
     errorBox.classList.remove('d-none');
     return;
   }
-  if (name && !isValidName(name)) {
-    errorBox.textContent = `Nom invalide : « ${name} » (lettres, chiffres et tirets uniquement).`;
-    errorBox.classList.remove('d-none');
-    return;
+  if (name) {
+    const nameError = nameValidationError(name);
+    if (nameError) {
+      errorBox.textContent = nameError;
+      errorBox.classList.remove('d-none');
+      return;
+    }
   }
 
   const payload = {
@@ -577,10 +595,13 @@ async function submitAddPoolBinding() {
     errorBox.classList.remove('d-none');
     return;
   }
-  if (name && !isValidName(name)) {
-    errorBox.textContent = `Nom invalide : « ${name} » (lettres, chiffres et tirets uniquement).`;
-    errorBox.classList.remove('d-none');
-    return;
+  if (name) {
+    const nameError = nameValidationError(name);
+    if (nameError) {
+      errorBox.textContent = nameError;
+      errorBox.classList.remove('d-none');
+      return;
+    }
   }
 
   const payload = {

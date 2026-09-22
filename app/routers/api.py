@@ -146,11 +146,9 @@ def pool_add(payload: PoolPayload, request: Request):
     # Nom par défaut si non renseigné : l'IP réseau avec les « . » remplacés
     # par des « - » (déjà conforme à la contrainte alphanumérique + tiret).
     name = payload.name.strip() or ip.replace(".", "-")
-    if not _NAME_RE.match(name):
-        return {
-            "ok": False,
-            "error": f"Nom invalide : « {name} » (lettres, chiffres et tirets uniquement).",
-        }
+    name_error = _validate_name(name)
+    if name_error:
+        return {"ok": False, "error": name_error}
 
     try:
         dhcp.pool_add(
@@ -289,6 +287,18 @@ def _valid_ipv4(value: str) -> bool:
 
 _MAC_CLEAN_RE = re.compile(r"^[0-9A-F]{12}$")
 _NAME_RE = re.compile(r"^[A-Za-z0-9-]+$")
+_NAME_MAX_LENGTH = 32  # limite ArubaOS-Switch sur le nom d'un pool DHCP
+
+
+def _validate_name(name: str) -> str | None:
+    """Nom d'un pool (réseau ou réservation statique — les deux sont des
+    pools côté switch). Renvoie un message d'erreur si invalide, sinon
+    None."""
+    if not _NAME_RE.match(name):
+        return f"Nom invalide : « {name} » (lettres, chiffres et tirets uniquement)."
+    if len(name) > _NAME_MAX_LENGTH:
+        return f"Nom trop long : « {name} » ({len(name)} caractères, {_NAME_MAX_LENGTH} max)."
+    return None
 
 
 def _normalize_mac(raw: str) -> tuple[str, str] | None:
@@ -360,11 +370,9 @@ def binding_add(payload: BindingPayload, request: Request):
     # (déjà conforme à cette contrainte), plutôt que le format affichage
     # (qui contient des « : »).
     name = payload.name.strip() or mac_switch_format
-    if not _NAME_RE.match(name):
-        return {
-            "ok": False,
-            "error": f"Nom invalide : « {name} » (lettres, chiffres et tirets uniquement).",
-        }
+    name_error = _validate_name(name)
+    if name_error:
+        return {"ok": False, "error": name_error}
 
     try:
         dhcp.binding_add(client, name, mac_switch_format, ip, ip_mask)

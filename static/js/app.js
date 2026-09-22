@@ -390,7 +390,9 @@ async function loadBindingsIfConnected() {
     return;
   }
 
-  tbody.innerHTML = result.bindings.map((b) => {
+  const sortedBindings = [...result.bindings].sort((a, b) => ipToInt(a.ip) - ipToInt(b.ip));
+
+  tbody.innerHTML = sortedBindings.map((b) => {
     const isStatic = b.type === 'static';
     const label = b.name || b.pool || '';
     const deleteBtn = isStatic

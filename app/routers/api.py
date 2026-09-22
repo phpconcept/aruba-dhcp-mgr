@@ -366,10 +366,13 @@ def binding_add(payload: BindingPayload, request: Request):
         return {"ok": False, "error": f"Masque invalide : « {payload.ip_mask} »."}
 
     # Nom du pool statique sous-jacent : ArubaOS-Switch n'accepte que
-    # alphanumérique + tiret. Par défaut on reprend la MAC au format switch
-    # (déjà conforme à cette contrainte), plutôt que le format affichage
-    # (qui contient des « : »).
-    name = payload.name.strip() or mac_switch_format
+    # alphanumérique + tiret, et le nom est la seule clé d'unicité côté
+    # switch (réutiliser un nom existant écrase silencieusement l'entrée,
+    # voir ARCHITECTURE.md §9.4). Par défaut on concatène donc MAC (format
+    # switch) et IP plutôt que la seule MAC, pour réduire le risque de
+    # collision avec une réservation qu'on voudrait garder (deux réservations
+    # pour un même équipement sur des IP différentes, par exemple).
+    name = payload.name.strip() or f"{mac_switch_format}-{ip.replace('.', '-')}"
     name_error = _validate_name(name)
     if name_error:
         return {"ok": False, "error": name_error}

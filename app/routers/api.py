@@ -134,7 +134,18 @@ def pool_add(payload: PoolPayload, request: Request):
     if client is None:
         return _not_connected()
 
-    name = payload.name.strip()
+    ip = payload.ip.strip()
+    mask = payload.mask.strip()
+    if not ip or not mask:
+        return {"ok": False, "error": "L'adresse IP réseau et le masque sont requis."}
+    if not _valid_ipv4(ip):
+        return {"ok": False, "error": f"Adresse IP réseau invalide : « {ip} »."}
+    if not _valid_ipv4(mask):
+        return {"ok": False, "error": f"Masque invalide : « {mask} »."}
+
+    # Nom par défaut si non renseigné : l'IP réseau avec les « . » remplacés
+    # par des « - » (déjà conforme à la contrainte alphanumérique + tiret).
+    name = payload.name.strip() or ip.replace(".", "-")
     if not _NAME_RE.match(name):
         return {
             "ok": False,
@@ -145,8 +156,8 @@ def pool_add(payload: PoolPayload, request: Request):
         dhcp.pool_add(
             client,
             name,
-            payload.ip,
-            payload.mask,
+            ip,
+            mask,
             dns_servers=payload.dns_servers or None,
             default_gateways=payload.default_gateways or None,
         )

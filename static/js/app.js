@@ -257,11 +257,36 @@ async function submitAddPool() {
   const errorBox = document.getElementById('modal-add-pool-error');
   errorBox.classList.add('d-none');
 
+  const ip = document.getElementById('pool-ip').value.trim();
+  const mask = document.getElementById('pool-mask').value.trim();
+  const name = document.getElementById('pool-name').value.trim();
+
+  if (!ip || !mask) {
+    errorBox.textContent = "L'adresse IP réseau et le masque sont requis.";
+    errorBox.classList.remove('d-none');
+    return;
+  }
+  if (!isValidIPv4(ip)) {
+    errorBox.textContent = `Adresse IP réseau invalide : « ${ip} ».`;
+    errorBox.classList.remove('d-none');
+    return;
+  }
+  if (!isValidIPv4(mask)) {
+    errorBox.textContent = `Masque invalide : « ${mask} ».`;
+    errorBox.classList.remove('d-none');
+    return;
+  }
+  if (name && !isValidName(name)) {
+    errorBox.textContent = `Nom invalide : « ${name} » (lettres, chiffres et tirets uniquement).`;
+    errorBox.classList.remove('d-none');
+    return;
+  }
+
   const payload = {
     switch_id: g_status.current,
-    name: document.getElementById('pool-name').value,
-    ip: document.getElementById('pool-ip').value,
-    mask: document.getElementById('pool-mask').value,
+    name,
+    ip,
+    mask,
     default_gateways: csvToList(document.getElementById('pool-gateways').value),
     dns_servers: csvToList(document.getElementById('pool-dns').value),
   };

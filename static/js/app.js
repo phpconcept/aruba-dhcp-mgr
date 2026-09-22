@@ -201,6 +201,7 @@ async function loadPoolsIfConnected() {
     return;
   }
 
+  tbody.innerHTML = '<tr><td colspan="7" class="text-muted">Chargement en cours...</td></tr>';
   const result = await apiFetch(`/api/pools?switch_id=${g_status.current}`);
   if (!result.ok) {
     errorBox.textContent = result.error;
@@ -290,6 +291,7 @@ async function loadBindingsIfConnected() {
     return;
   }
 
+  tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Chargement en cours...</td></tr>';
   const result = await apiFetch(`/api/bindings?switch_id=${g_status.current}`);
   if (!result.ok) {
     errorBox.textContent = result.error;
@@ -416,7 +418,13 @@ async function loadPoolDetailIfConnected() {
     return;
   }
 
+  errorBox.classList.add('d-none');
+  errorBox.textContent = '';
+  const loadingBox = document.getElementById('pool-detail-loading');
+  loadingBox.classList.remove('d-none');
+
   const result = await apiFetch(`/api/pools/${encodeURIComponent(POOL_NAME)}?switch_id=${g_status.current}`);
+  loadingBox.classList.add('d-none');
   if (!result.ok) {
     errorBox.textContent = result.error;
     errorBox.classList.remove('d-none');

@@ -159,11 +159,66 @@ doit indiquer `HTTPS Access : Enabled` (port SSL 443).
 
 ## 8. Pistes pour la suite
 
-- Formulaires d'ajout/édition/suppression de pools DHCP (`pool_add`,
-  `pool_edit`, `pool_delete` déjà dispo côté lib)
-- Ajout/suppression de réservations DHCP (`binding_add`, `binding_delete`
-  déjà dispo côté lib)
+- ✅ Ajout/suppression de pools DHCP (`pool_add`/`pool_delete`)
+- ✅ Ajout/suppression de réservations DHCP (`binding_add`/`binding_delete`,
+  suppression limitée aux réservations statiques — voir §9)
+- Édition de pool existant (`pool_edit` déjà dispo côté lib, pas encore
+  branché côté web — nécessaire pour la gestion des plages, voir §9)
 - Déploiement propre : utilisateur système dédié + unité systemd (voir §6)
 - Doc/outil de troubleshooting connexion switch (voir §7)
 - Support `scheme: http` par switch dans `switches.yaml`, si un switch ne
   peut pas avoir HTTPS activé
+
+## 9. Cas particuliers observés sur une config réelle
+
+Relevé le 22/09/2026 sur un export `dhcp-server pool ...` du switch de labo
+(une quinzaine de pools réels : VLAN classiques avec `network`/`range`,
+réservations statiques via `static-bind`, gateways/DNS multiples
+séparés par virgule). Deux points à traiter :
+
+### 9.1 Pool incomplet (ex: `testrr`)
+
+Un pool peut n'avoir qu'un `default-router`, sans `network`/`mask` :
+```
+dhcp-server pool "testrr"
+   default-router "192.168.39.1"
+   exit
+```
+Or `dhcp.pool_list()` **exclut explicitement** les pools sans
+`network_ip`/`network_mask` (voir le commentaire dans `dhcp.py` — ce filtre
+vient de la classe PHP d'origine, pensé pour les pools qui ne portent que des
+réservations statiques via `static-bind`, comme `test6`/`test7`/`testvbia`
+dans le relevé). Mais `testrr` n'a pas non plus de `static-bind` : c'est un
+pool **incomplet/orphelin**, ni un réseau valide ni un porteur de
+réservations. Aujourd'hui il est donc invisible dans `pool_list()`
+**silencieusement**, sans distinction avec "n'existe pas".
+
+**À traiter** :
+- Décider du comportement voulu : afficher ces pools incomplets à part
+  (avec un badge "configuration incomplète") plutôt que les faire
+  disparaître silencieusement ? Ou les ignorer volontairement mais avec un
+  avertissement visible côté dashboard ("N pools ignorés car incomplets") ?
+- Vérifier si `any_cli("show dhcp-server config")` (plutôt que l'endpoint
+  REST structuré) permettrait de les lister quand même, pour au moins les
+  signaler.
+
+### 9.2 Gestion des plages (`range`)
+
+Confirmé sur le relevé réel : plusieurs plages par pool sont courantes
+(`VLAN-38` a deux `range` distincts), et `dhcp.pool_list()` les remonte déjà
+correctement (`DhcpPool.ip_ranges: list[IpRange]`) — donc la lecture (page
+Pools actuelle) les affiche déjà bien.
+
+Ce qui manque : la **création/modification** des plages depuis l'interface.
+`pool_add()` ne prend pas de plage en paramètre (un pool tout juste créé n'a
+donc pas de `range` tant qu'on ne le modifie pas). `pool_edit()` côté lib
+sait déjà ajouter/retirer des plages (`ip_ranges_add`/`ip_ranges_remove`),
+mais rien n'est branché côté web pour l'instant (voir §8).
+
+**À traiter** :
+- Formulaire d'édition de pool (page ou modale dédiée), avec gestion des
+  plages en ajout/retrait — c'est le principal chaînon manquant pour que la
+  V1 couvre les cas réels observés (`VLAN-31`, `VLAN-38`...).
+- Décider si `pool_add()` doit accepter directement une première plage à la
+  création (évite un aller-retour création puis édition immédiate) —
+  nécessiterait un petit ajout côté lib `aruba-aos-switch`.

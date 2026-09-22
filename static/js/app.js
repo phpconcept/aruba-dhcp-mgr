@@ -7,6 +7,7 @@
  */
 
 let g_status = { connected: [], current: null };
+let g_currentPool = null;
 
 async function apiFetch(url, opts = {}) {
   const res = await fetch(url, {
@@ -55,6 +56,17 @@ function isValidMac(value) {
 
 function isValidName(value) {
   return /^[A-Za-z0-9-]+$/.test(value.trim());
+}
+
+function ipToInt(ip) {
+  return ip.split('.').reduce((acc, octet) => (acc * 256) + Number(octet), 0);
+}
+
+function ipInSubnet(ip, network, mask) {
+  const ipInt = ipToInt(ip);
+  const netInt = ipToInt(network);
+  const maskInt = ipToInt(mask);
+  return (ipInt & maskInt) === (netInt & maskInt);
 }
 
 function switchName(switchId) {
@@ -498,6 +510,7 @@ async function loadPoolDetailIfConnected() {
 
 function renderPoolDetail(result) {
   const p = result.pool;
+  g_currentPool = p;
   document.getElementById('detail-name').textContent = p.name;
   document.getElementById('detail-ip').textContent = p.ip || '';
   document.getElementById('detail-mask').textContent = p.mask || '';
@@ -522,8 +535,84 @@ function renderPoolDetail(result) {
 
   const staticBody = document.getElementById('static-bindings-table-body');
   staticBody.innerHTML = result.static_bindings.length === 0
-    ? '<tr><td colspan="3" class="text-muted">Aucune réservation statique détectée dans ce sous-réseau.</td></tr>'
-    : result.static_bindings.map((b) => `<tr><td>${b.name}</td><td>${b.ip}</td><td>${b.mac}</td></tr>`).join('');
+    ? '<tr><td colspan="4" class="text-muted">Aucune réservation statique détectée dans ce sous-réseau.</td></tr>'
+    : result.static_bindings.map((b) => `
+        <tr>
+          <td>${b.name}</td>
+          <td>${b.ip}</td>
+          <td>${b.mac}</td>
+          <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="deletePoolBinding('${b.name}')">Supprimer</button></td>
+        </tr>
+      `).join('');
+}
+
+function openAddPoolBindingModal() {
+  document.getElementById('modal-add-pool-binding-error').classList.add('d-none');
+  ['pool-binding-name', 'pool-binding-mac', 'pool-binding-ip'].forEach((id) => {
+    document.getElementById(id).value = '';
+  });
+  new bootstrap.Modal(document.getElementById('modal-add-pool-binding')).show();
+}
+
+async function submitAddPoolBinding() {
+  const errorBox = document.getElementById('modal-add-pool-binding-error');
+  errorBox.classList.add('d-none');
+
+  const ip = document.getElementById('pool-binding-ip').value.trim();
+  const mac = document.getElementById('pool-binding-mac').value.trim();
+  const name = document.getElementById('pool-binding-name').value.trim();
+
+  if (!isValidIPv4(ip)) {
+    errorBox.textContent = `Adresse IP invalide : « ${ip} ».`;
+    errorBox.classList.remove('d-none');
+    return;
+  }
+  if (g_currentPool && !ipInSubnet(ip, g_currentPool.ip, g_currentPool.mask)) {
+    errorBox.textContent = `L'IP ${ip} n'appartient pas au sous-réseau du pool (${g_currentPool.ip}/${g_currentPool.mask}).`;
+    errorBox.classList.remove('d-none');
+    return;
+  }
+  if (!isValidMac(mac)) {
+    errorBox.textContent = `Adresse MAC invalide : « ${mac} ».`;
+    errorBox.classList.remove('d-none');
+    return;
+  }
+  if (name && !isValidName(name)) {
+    errorBox.textContent = `Nom invalide : « ${name} » (lettres, chiffres et tirets uniquement).`;
+    errorBox.classList.remove('d-none');
+    return;
+  }
+
+  const payload = {
+    switch_id: g_status.current,
+    name,
+    mac,
+    ip,
+    ip_mask: g_currentPool.mask,
+  };
+
+  const result = await apiFetch('/api/bindings', { method: 'POST', body: JSON.stringify(payload) });
+  if (!result.ok) {
+    errorBox.textContent = result.error || 'Échec de la création de la réservation.';
+    errorBox.classList.remove('d-none');
+    return;
+  }
+
+  bootstrap.Modal.getInstance(document.getElementById('modal-add-pool-binding')).hide();
+  await loadPoolDetailIfConnected();
+}
+
+function deletePoolBinding(name) {
+  confirmAction(`Supprimer la réservation "${name}" ?`, async () => {
+    const errorBox = document.getElementById('pool-binding-error');
+    const result = await apiFetch(`/api/bindings/${encodeURIComponent(name)}?switch_id=${g_status.current}`, { method: 'DELETE' });
+    if (!result.ok) {
+      errorBox.textContent = result.error || 'Échec de la suppression.';
+      errorBox.classList.remove('d-none');
+      return;
+    }
+    await loadPoolDetailIfConnected();
+  });
 }
 
 async function submitSavePool() {

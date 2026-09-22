@@ -68,21 +68,59 @@
   </div>
 
   <div class="card mb-3">
-    <div class="card-header">
-      Réservations statiques dans ce sous-réseau
-      <span class="text-muted small">(détection par plage d'adresses — informatif, non garanti exhaustif)</span>
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>
+        Réservations statiques dans ce sous-réseau
+        <span class="text-muted small">(détection par plage d'adresses — informatif, non garanti exhaustif)</span>
+      </span>
+      <button type="button" id="btn-add-pool-binding" class="btn btn-sm btn-primary">Ajouter une réservation</button>
     </div>
     <div class="card-body">
+      <div id="pool-binding-error" class="alert alert-danger d-none"></div>
       <table class="table table-sm mb-0">
-        <thead><tr><th>Nom</th><th>IP</th><th>MAC</th></tr></thead>
+        <thead><tr><th>Nom</th><th>IP</th><th>MAC</th><th></th></tr></thead>
         <tbody id="static-bindings-table-body">
-          <tr><td colspan="3" class="text-muted">Aucune réservation statique détectée dans ce sous-réseau.</td></tr>
+          <tr><td colspan="4" class="text-muted">Aucune réservation statique détectée dans ce sous-réseau.</td></tr>
         </tbody>
       </table>
     </div>
   </div>
 
   <p id="pool-detail-last-updated" class="text-muted small"></p>
+</div>
+
+<!-- Modal : ajout d'une réservation statique depuis la fiche du pool -->
+<div class="modal fade" id="modal-add-pool-binding" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Ajouter une réservation dans ce sous-réseau</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-add-pool-binding-error" class="alert alert-danger d-none"></div>
+        <div class="mb-3">
+          <label class="form-label">Nom <span class="text-muted small">(optionnel — par défaut, l'adresse MAC)</span></label>
+          <input type="text" id="pool-binding-name" class="form-control">
+          <div class="form-text">Lettres, chiffres et tirets uniquement.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Adresse MAC</label>
+          <input type="text" id="pool-binding-mac" class="form-control" placeholder="AA:BB:CC:DD:EE:FF">
+          <div class="form-text">Formats acceptés : AA:BB:CC:DD:EE:FF, AA-BB-CC-DD-EE-FF, aabbcc-ddeeff.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">IP réservée</label>
+          <input type="text" id="pool-binding-ip" class="form-control">
+          <div class="form-text">Doit appartenir au sous-réseau du pool (masque du pool utilisé automatiquement).</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" id="btn-add-pool-binding-submit" class="btn btn-primary">Créer</button>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
 {% block scripts %}
@@ -93,6 +131,8 @@
   document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-save-pool').addEventListener('click', submitSavePool);
     document.getElementById('btn-add-range').addEventListener('click', submitAddRange);
+    document.getElementById('btn-add-pool-binding').addEventListener('click', openAddPoolBindingModal);
+    document.getElementById('btn-add-pool-binding-submit').addEventListener('click', submitAddPoolBinding);
   });
 </script>
 {% endblock %}

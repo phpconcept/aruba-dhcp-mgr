@@ -159,6 +159,8 @@ doit indiquer `HTTPS Access : Enabled` (port SSL 443).
 
 ## 8. Pistes pour la suite
 
+- ✅ Fiche switch (`/switches/<id>`) : infos générales (nom/IP) + statut
+  enable/disable du serveur DHCP — voir §9.5 pour la fiabilité du parsing
 - ✅ Ajout/suppression de pools DHCP (`pool_add`/`pool_delete`)
 - ✅ Ajout/suppression de réservations DHCP (`binding_add`/`binding_delete`,
   suppression limitée aux réservations statiques — voir §9)
@@ -277,3 +279,26 @@ d'un pool ou d'une réservation) correspond à un pool déjà existant sur le
 switch, pour éviter un écrasement accidentel ? Aujourd'hui rien ne le
 signale ni côté switch ni côté `aruba-dhcp-mgr` — à la charge de
 l'utilisateur de vérifier avant de valider.
+
+### 9.5 Fiche switch et paramètres DHCP globaux
+
+Nouvelle page `/switches/<id>` (lien depuis le nom du switch sur les cartes
+du dashboard), pensée pour grandir progressivement :
+- Une partie **fixe/descriptive** (nom, IP — depuis `switches.yaml`)
+- Une partie **paramètres DHCP globaux**, appelée à s'enrichir au fil de
+  l'eau (options DHCP, etc.). Contient pour l'instant uniquement le statut
+  enable/disable du serveur DHCP, en lecture seule.
+
+**Point de fiabilité à surveiller** : contrairement à `pool_list()` (REST
+structuré), il n'y a pas d'endpoint REST connu pour ce statut. Ça repose sur
+`dhcp.server_status()` côté lib `aruba-aos-switch`, qui parse le texte de
+`show dhcp-server` (même réserve que `binding_list()` — sortie potentiellement
+sensible à la version de firmware). Le motif cherché (« DHCP server :
+Enabled/Disabled ») est une hypothèse **non encore validée sur un switch
+réel**. Si le badge affiche "Indéterminé" en pratique, il faudra relever la
+sortie exacte de `show dhcp-server` sur le switch labo et ajuster le motif en
+conséquence.
+
+**À faire plus tard** : une fois le statut fiable, envisager une action pour
+basculer enable/disable depuis cette page (actuellement demandé en lecture
+seule uniquement).

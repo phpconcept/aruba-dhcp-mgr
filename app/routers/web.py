@@ -1,0 +1,39 @@
+"""Pages HTML : dashboard, pools, bindings."""
+from __future__ import annotations
+
+import json
+from dataclasses import asdict
+
+from fastapi import APIRouter, Request
+from fastapi.templating import Jinja2Templates
+
+from app import config
+
+router = APIRouter()
+templates = Jinja2Templates(directory="app/templates")
+
+
+def _base_context() -> dict:
+    switches = config.load_switches()
+    return {
+        "switches": switches,
+        "switches_json": json.dumps([asdict(s) for s in switches]),
+    }
+
+
+@router.get("/")
+def dashboard(request: Request):
+    context = _base_context() | {"active_page": "dashboard"}
+    return templates.TemplateResponse(request=request, name="dashboard.html", context=context)
+
+
+@router.get("/pools")
+def pools_page(request: Request):
+    context = _base_context() | {"active_page": "pools"}
+    return templates.TemplateResponse(request=request, name="pools.html", context=context)
+
+
+@router.get("/bindings")
+def bindings_page(request: Request):
+    context = _base_context() | {"active_page": "bindings"}
+    return templates.TemplateResponse(request=request, name="bindings.html", context=context)

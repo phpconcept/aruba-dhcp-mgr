@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Dashboard</h2>
+<p class="text-muted">Sélectionnez un switch dans le menu en haut à droite pour vous connecter, puis consultez les pools DHCP ou les réservations.</p>
+<div id="dashboard-switch-list" class="row g-3"></div>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', renderDashboardSwitchCards);
+</script>
+{% endblock %}

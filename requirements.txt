@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart
+itsdangerous
+pyyaml
+-e /var/dev/aruba-aos-switch

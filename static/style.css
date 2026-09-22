@@ -1,0 +1,6 @@
+body {
+  background-color: #f5f6f8;
+}
+.navbar-text select {
+  min-width: 180px;
+}

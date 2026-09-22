@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Réservations DHCP</h2>
+<div id="bindings-error" class="alert alert-danger d-none"></div>
+<table class="table table-striped">
+  <thead>
+    <tr><th>IP</th><th>MAC</th><th>Type</th><th>Expire</th><th>Nom / Pool</th></tr>
+  </thead>
+  <tbody id="bindings-table-body">
+    <tr><td colspan="5" class="text-muted">Connectez-vous à un switch pour afficher les réservations.</td></tr>
+  </tbody>
+</table>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', loadBindingsIfConnected);
+  document.addEventListener('adm:switch-connected', loadBindingsIfConnected);
+</script>
+{% endblock %}

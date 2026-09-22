@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Pools DHCP</h2>
+<div id="pools-error" class="alert alert-danger d-none"></div>
+<table class="table table-striped">
+  <thead>
+    <tr><th>Nom</th><th>Réseau</th><th>Masque</th><th>Passerelles</th><th>DNS</th><th>Plages</th></tr>
+  </thead>
+  <tbody id="pools-table-body">
+    <tr><td colspan="6" class="text-muted">Connectez-vous à un switch pour afficher les pools.</td></tr>
+  </tbody>
+</table>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', loadPoolsIfConnected);
+  document.addEventListener('adm:switch-connected', loadPoolsIfConnected);
+</script>
+{% endblock %}

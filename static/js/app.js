@@ -55,6 +55,10 @@ function isValidMac(value) {
   return /^[0-9A-F]{12}$/.test(cleaned);
 }
 
+function isValidLease(value) {
+  return /^\d{1,3}:\d{1,2}:\d{1,2}$/.test(value.trim());
+}
+
 function isValidName(value) {
   return /^[A-Za-z0-9-]+$/.test(value.trim());
 }
@@ -600,6 +604,10 @@ function renderPoolDetail(result) {
   document.getElementById('detail-mask').textContent = p.mask || '';
   document.getElementById('detail-gateways').value = p.default_gateways.join(', ');
   document.getElementById('detail-dns').value = p.dns_servers.join(', ');
+  document.getElementById('detail-domain-name').value = p.domain_name || '';
+  // "infinite" est la valeur par défaut/vide côté app (voir submitSavePool) :
+  // pas la peine de la pré-remplir, le champ vide véhicule déjà ce sens.
+  document.getElementById('detail-lease').value = p.lease === 'infinite' ? '' : p.lease;
 
   const rangesBody = document.getElementById('ranges-table-body');
   rangesBody.innerHTML = p.ip_ranges.length === 0
@@ -715,10 +723,19 @@ async function submitSavePool() {
     return;
   }
 
+  const lease = document.getElementById('detail-lease').value.trim();
+  if (lease && lease.toLowerCase() !== 'infinite' && !isValidLease(lease)) {
+    errorBox.textContent = `Durée de bail invalide : « ${lease} » (format attendu : JJ:HH:MM, ou vide pour infinite).`;
+    errorBox.classList.remove('d-none');
+    return;
+  }
+
   const payload = {
     switch_id: g_status.current,
     default_gateways: defaultGateways,
     dns_servers: dnsServers,
+    domain_name: document.getElementById('detail-domain-name').value.trim(),
+    lease,
   };
   const result = await apiFetch(`/api/pools/${encodeURIComponent(POOL_NAME)}`, { method: 'PUT', body: JSON.stringify(payload) });
   if (!result.ok) {

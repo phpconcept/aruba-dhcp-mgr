@@ -270,6 +270,29 @@ class PoolEditPayload(BaseModel):
     switch_id: str
     dns_servers: list[str] = []
     default_gateways: list[str] = []
+    domain_name: str = ""
+    lease: str = ""
+
+
+_LEASE_RE = re.compile(r"^\d{1,3}:\d{1,2}:\d{1,2}$")
+
+
+def _normalize_lease(raw: str) -> tuple[str, str | None]:
+    """
+    Convention app (demandée par Vincent) : un champ vide signifie
+    « infinite », pas « ne pas modifier » — cohérent avec le fait que ce
+    champ est toujours affiché/soumis avec sa valeur actuelle.
+    Renvoie (valeur_normalisée, message_erreur | None).
+    """
+    value = raw.strip()
+    if not value or value.lower() == "infinite":
+        return "infinite", None
+    if not _LEASE_RE.match(value):
+        return value, (
+            f"Durée de bail invalide : « {value} » "
+            "(format attendu : JJ:HH:MM, ou vide pour infinite)."
+        )
+    return value, None
 
 
 @router.put("/pools/{name}")
@@ -282,12 +305,18 @@ def pool_edit(name: str, payload: PoolEditPayload, request: Request):
     if limits_error:
         return {"ok": False, "error": limits_error}
 
+    lease, lease_error = _normalize_lease(payload.lease)
+    if lease_error:
+        return {"ok": False, "error": lease_error}
+
     try:
         dhcp.pool_edit(
             client,
             name,
             dns_servers=payload.dns_servers,
             default_gateways=payload.default_gateways,
+            domain_name=payload.domain_name.strip(),
+            lease=lease,
         )
     except AosSwitchError as exc:
         return {"ok": False, "error": str(exc)}

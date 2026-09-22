@@ -29,6 +29,15 @@
         <label class="form-label">DNS (séparés par des virgules)</label>
         <input type="text" id="detail-dns" class="form-control">
       </div>
+      <div class="mb-3">
+        <label class="form-label">Nom de domaine DNS <span class="text-muted small">(optionnel)</span></label>
+        <input type="text" id="detail-domain-name" class="form-control" placeholder="lan.local">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Durée du bail <span class="text-muted small">(vide = infinite)</span></label>
+        <input type="text" id="detail-lease" class="form-control" placeholder="infinite">
+        <div class="form-text">Format JJ:HH:MM (ex. 1:00:00 pour un jour), ou vide/« infinite ».</div>
+      </div>
       <div id="detail-edit-error" class="alert alert-danger d-none"></div>
       <button type="button" id="btn-save-pool" class="btn btn-primary">Enregistrer</button>
     </div>

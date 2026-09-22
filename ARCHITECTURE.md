@@ -162,8 +162,17 @@ doit indiquer `HTTPS Access : Enabled` (port SSL 443).
 - ✅ Ajout/suppression de pools DHCP (`pool_add`/`pool_delete`)
 - ✅ Ajout/suppression de réservations DHCP (`binding_add`/`binding_delete`,
   suppression limitée aux réservations statiques — voir §9)
-- Édition de pool existant (`pool_edit` déjà dispo côté lib, pas encore
-  branché côté web — nécessaire pour la gestion des plages, voir §9)
+- ✅ Fiche/édition de pool (`/pools/<name>`) : passerelles, DNS, plages
+  (ajout/suppression), baux dynamiques liés, réservations statiques
+  détectées dans le sous-réseau — voir §9.3 pour le détail des choix
+- ✅ Bouton rafraîchir + horodatage "dernière mise à jour" (pools,
+  bindings, fiche pool) ; modale de confirmation (remplace `confirm()`)
+  pour les suppressions
+- Édition du réseau/masque d'un pool (`pool_edit` le permet côté lib,
+  volontairement pas exposé côté web pour l'instant — changer le réseau
+  d'un pool existant a plus de risques d'effets de bord que
+  gateway/DNS/ranges, à ne pas faire sans y réfléchir)
+- Cas des pools incomplets (`testrr`) — décision encore à prendre, voir §9.1
 - Déploiement propre : utilisateur système dédié + unité systemd (voir §6)
 - Doc/outil de troubleshooting connexion switch (voir §7)
 - Support `scheme: http` par switch dans `switches.yaml`, si un switch ne
@@ -222,3 +231,26 @@ mais rien n'est branché côté web pour l'instant (voir §8).
 - Décider si `pool_add()` doit accepter directement une première plage à la
   création (évite un aller-retour création puis édition immédiate) —
   nécessiterait un petit ajout côté lib `aruba-aos-switch`.
+
+### 9.3 Fiche/édition de pool — choix retenus
+
+Suite à discussion : la gestion des plages se fait **uniquement en
+édition**, jamais à la création d'un pool (risque identifié : mélanger les
+deux incite à sauter l'étape "vérifier les réservations statiques déjà
+présentes avant d'ouvrir une plage").
+
+Ça a mené à fusionner "fiche descriptive" et "écran d'édition" en une seule
+page `/pools/<name>` (plutôt qu'une popup, ou deux écrans séparés) :
+- Passerelles/DNS éditables inline (`PUT /api/pools/<name>`)
+- Plages : ajout/suppression (`POST`/`DELETE /api/pools/<name>/ranges`)
+- Baux dynamiques actifs : lien **fiable**, via `binding.pool == pool.name`
+  (le switch groupe déjà `show dhcp-server binding` par pool)
+- Réservations statiques "dans ce sous-réseau" : lien **calculé/best-effort**
+  (IP de la réservation testée dans le CIDR réseau/masque du pool), car sur
+  ArubaOS-Switch chaque réservation statique est un pool à part entière
+  (`static-bind`), sans lien structurel avec le pool réseau — voir l'exemple
+  réel `VLAN-31-a` (masque `/26`) vs `VLAN-31` (masque `/24`) au §9. Section
+  clairement étiquetée comme informative dans l'UI, pas comme une vérité du
+  switch.
+- Réseau/masque du pool volontairement non éditables depuis cette page (voir
+  §8).

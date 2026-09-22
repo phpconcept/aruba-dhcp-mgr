@@ -1,4 +1,5 @@
-/* Aruba DHCP Manager — logique commune : connexion switch, bandeau d'état.
+/* Aruba DHCP Manager — logique commune : connexion switch, bandeau d'état,
+ * pools et réservations DHCP.
  * Reprend le principe de l'ancien ArubaDhcpMgt (PHP) : aucun identifiant
  * n'est jamais gardé côté navigateur au-delà du formulaire de la popup ;
  * seul le cookie de session (opaque) permet de retrouver la connexion
@@ -13,6 +14,10 @@ async function apiFetch(url, opts = {}) {
     ...opts,
   });
   return res.json();
+}
+
+function csvToList(value) {
+  return value.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
 }
 
 function switchName(switchId) {
@@ -111,6 +116,10 @@ function renderDashboardSwitchCards() {
   `).join('');
 }
 
+// ------------------------------------------------------------------
+// Pools DHCP
+// ------------------------------------------------------------------
+
 async function loadPoolsIfConnected() {
   const tbody = document.getElementById('pools-table-body');
   const errorBox = document.getElementById('pools-error');
@@ -119,7 +128,7 @@ async function loadPoolsIfConnected() {
   errorBox.classList.add('d-none');
 
   if (!g_status.current) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Connectez-vous à un switch pour afficher les pools.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-muted">Connectez-vous à un switch pour afficher les pools.</td></tr>';
     return;
   }
 
@@ -132,7 +141,7 @@ async function loadPoolsIfConnected() {
   }
 
   if (result.pools.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Aucun pool configuré.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-muted">Aucun pool configuré.</td></tr>';
     return;
   }
 
@@ -144,9 +153,58 @@ async function loadPoolsIfConnected() {
       <td>${p.default_gateways.join(', ')}</td>
       <td>${p.dns_servers.join(', ')}</td>
       <td>${p.ip_ranges.map((r) => `${r.ip_start} - ${r.ip_end}`).join('<br>')}</td>
+      <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="deletePool('${p.name}')">Supprimer</button></td>
     </tr>
   `).join('');
 }
+
+function openAddPoolModal() {
+  document.getElementById('modal-add-pool-error').classList.add('d-none');
+  ['pool-name', 'pool-ip', 'pool-mask', 'pool-gateways', 'pool-dns'].forEach((id) => {
+    document.getElementById(id).value = '';
+  });
+  new bootstrap.Modal(document.getElementById('modal-add-pool')).show();
+}
+
+async function submitAddPool() {
+  const errorBox = document.getElementById('modal-add-pool-error');
+  errorBox.classList.add('d-none');
+
+  const payload = {
+    switch_id: g_status.current,
+    name: document.getElementById('pool-name').value,
+    ip: document.getElementById('pool-ip').value,
+    mask: document.getElementById('pool-mask').value,
+    default_gateways: csvToList(document.getElementById('pool-gateways').value),
+    dns_servers: csvToList(document.getElementById('pool-dns').value),
+  };
+
+  const result = await apiFetch('/api/pools', { method: 'POST', body: JSON.stringify(payload) });
+  if (!result.ok) {
+    errorBox.textContent = result.error || 'Échec de la création du pool.';
+    errorBox.classList.remove('d-none');
+    return;
+  }
+
+  bootstrap.Modal.getInstance(document.getElementById('modal-add-pool')).hide();
+  await loadPoolsIfConnected();
+}
+
+async function deletePool(name) {
+  if (!confirm(`Supprimer le pool "${name}" ?`)) return;
+  const result = await apiFetch(`/api/pools/${encodeURIComponent(name)}?switch_id=${g_status.current}`, { method: 'DELETE' });
+  if (!result.ok) {
+    const errorBox = document.getElementById('pools-error');
+    errorBox.textContent = result.error || 'Échec de la suppression.';
+    errorBox.classList.remove('d-none');
+    return;
+  }
+  await loadPoolsIfConnected();
+}
+
+// ------------------------------------------------------------------
+// Réservations (bindings) DHCP
+// ------------------------------------------------------------------
 
 async function loadBindingsIfConnected() {
   const tbody = document.getElementById('bindings-table-body');
@@ -156,7 +214,7 @@ async function loadBindingsIfConnected() {
   errorBox.classList.add('d-none');
 
   if (!g_status.current) {
-    tbody.innerHTML = '<tr><td colspan="5" class="text-muted">Connectez-vous à un switch pour afficher les réservations.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Connectez-vous à un switch pour afficher les réservations.</td></tr>';
     return;
   }
 
@@ -169,20 +227,73 @@ async function loadBindingsIfConnected() {
   }
 
   if (result.bindings.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="text-muted">Aucune réservation.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Aucune réservation.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = result.bindings.map((b) => `
+  tbody.innerHTML = result.bindings.map((b) => {
+    const isStatic = b.type === 'static';
+    const label = b.name || b.pool || '';
+    const deleteBtn = isStatic
+      ? `<button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteBinding('${b.name}')">Supprimer</button>`
+      : '';
+    return `
     <tr>
       <td>${b.ip}</td>
       <td>${b.mac}</td>
       <td>${b.type}</td>
       <td>${b.expire}</td>
-      <td>${b.name || b.pool || ''}</td>
+      <td>${label}</td>
+      <td>${deleteBtn}</td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 }
+
+function openAddBindingModal() {
+  document.getElementById('modal-add-binding-error').classList.add('d-none');
+  ['binding-name', 'binding-mac', 'binding-ip', 'binding-ip-mask'].forEach((id) => {
+    document.getElementById(id).value = '';
+  });
+  new bootstrap.Modal(document.getElementById('modal-add-binding')).show();
+}
+
+async function submitAddBinding() {
+  const errorBox = document.getElementById('modal-add-binding-error');
+  errorBox.classList.add('d-none');
+
+  const payload = {
+    switch_id: g_status.current,
+    name: document.getElementById('binding-name').value,
+    mac: document.getElementById('binding-mac').value,
+    ip: document.getElementById('binding-ip').value,
+    ip_mask: document.getElementById('binding-ip-mask').value,
+  };
+
+  const result = await apiFetch('/api/bindings', { method: 'POST', body: JSON.stringify(payload) });
+  if (!result.ok) {
+    errorBox.textContent = result.error || 'Échec de la création de la réservation.';
+    errorBox.classList.remove('d-none');
+    return;
+  }
+
+  bootstrap.Modal.getInstance(document.getElementById('modal-add-binding')).hide();
+  await loadBindingsIfConnected();
+}
+
+async function deleteBinding(name) {
+  if (!confirm(`Supprimer la réservation "${name}" ?`)) return;
+  const result = await apiFetch(`/api/bindings/${encodeURIComponent(name)}?switch_id=${g_status.current}`, { method: 'DELETE' });
+  if (!result.ok) {
+    const errorBox = document.getElementById('bindings-error');
+    errorBox.textContent = result.error || 'Échec de la suppression.';
+    errorBox.classList.remove('d-none');
+    return;
+  }
+  await loadBindingsIfConnected();
+}
+
+// ------------------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
   populateSwitchSelects();

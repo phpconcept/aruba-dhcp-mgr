@@ -1,19 +1,65 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Pools DHCP</h2>
+<div class="d-flex justify-content-between align-items-center">
+  <h2>Pools DHCP</h2>
+  <button type="button" class="btn btn-primary" id="btn-add-pool">Ajouter un pool</button>
+</div>
 <div id="pools-error" class="alert alert-danger d-none"></div>
 <table class="table table-striped">
   <thead>
-    <tr><th>Nom</th><th>Réseau</th><th>Masque</th><th>Passerelles</th><th>DNS</th><th>Plages</th></tr>
+    <tr><th>Nom</th><th>Réseau</th><th>Masque</th><th>Passerelles</th><th>DNS</th><th>Plages</th><th></th></tr>
   </thead>
   <tbody id="pools-table-body">
-    <tr><td colspan="6" class="text-muted">Connectez-vous à un switch pour afficher les pools.</td></tr>
+    <tr><td colspan="7" class="text-muted">Connectez-vous à un switch pour afficher les pools.</td></tr>
   </tbody>
 </table>
+
+<!-- Modal : ajout de pool -->
+<div class="modal fade" id="modal-add-pool" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Ajouter un pool DHCP</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-add-pool-error" class="alert alert-danger d-none"></div>
+        <div class="mb-3">
+          <label class="form-label">Nom du pool</label>
+          <input type="text" id="pool-name" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Réseau (IP)</label>
+          <input type="text" id="pool-ip" class="form-control" placeholder="192.168.30.0">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Masque</label>
+          <input type="text" id="pool-mask" class="form-control" placeholder="255.255.255.0">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Passerelles (séparées par des virgules)</label>
+          <input type="text" id="pool-gateways" class="form-control" placeholder="192.168.30.1">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">DNS (séparés par des virgules)</label>
+          <input type="text" id="pool-dns" class="form-control" placeholder="192.168.22.1">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" id="btn-add-pool-submit" class="btn btn-primary">Créer</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 {% block scripts %}
 <script>
   document.addEventListener('DOMContentLoaded', loadPoolsIfConnected);
   document.addEventListener('adm:switch-connected', loadPoolsIfConnected);
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('btn-add-pool').addEventListener('click', openAddPoolModal);
+    document.getElementById('btn-add-pool-submit').addEventListener('click', submitAddPool);
+  });
 </script>
 {% endblock %}

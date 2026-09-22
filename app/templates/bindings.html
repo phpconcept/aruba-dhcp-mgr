@@ -1,19 +1,62 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Réservations DHCP</h2>
+<div class="d-flex justify-content-between align-items-center">
+  <h2>Réservations DHCP</h2>
+  <button type="button" class="btn btn-primary" id="btn-add-binding">Ajouter une réservation</button>
+</div>
 <div id="bindings-error" class="alert alert-danger d-none"></div>
 <table class="table table-striped">
   <thead>
-    <tr><th>IP</th><th>MAC</th><th>Type</th><th>Expire</th><th>Nom / Pool</th></tr>
+    <tr><th>IP</th><th>MAC</th><th>Type</th><th>Expire</th><th>Nom / Pool</th><th></th></tr>
   </thead>
   <tbody id="bindings-table-body">
-    <tr><td colspan="5" class="text-muted">Connectez-vous à un switch pour afficher les réservations.</td></tr>
+    <tr><td colspan="6" class="text-muted">Connectez-vous à un switch pour afficher les réservations.</td></tr>
   </tbody>
 </table>
+<p class="text-muted small">Seules les réservations statiques peuvent être supprimées ici (les baux dynamiques dépendent d'un pool réseau).</p>
+
+<!-- Modal : ajout de réservation -->
+<div class="modal fade" id="modal-add-binding" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Ajouter une réservation DHCP</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-add-binding-error" class="alert alert-danger d-none"></div>
+        <div class="mb-3">
+          <label class="form-label">Nom</label>
+          <input type="text" id="binding-name" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Adresse MAC</label>
+          <input type="text" id="binding-mac" class="form-control" placeholder="AA:BB:CC:DD:EE:FF">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">IP réservée</label>
+          <input type="text" id="binding-ip" class="form-control" placeholder="192.168.30.10">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Masque</label>
+          <input type="text" id="binding-ip-mask" class="form-control" placeholder="255.255.255.0">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" id="btn-add-binding-submit" class="btn btn-primary">Créer</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 {% block scripts %}
 <script>
   document.addEventListener('DOMContentLoaded', loadBindingsIfConnected);
   document.addEventListener('adm:switch-connected', loadBindingsIfConnected);
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('btn-add-binding').addEventListener('click', openAddBindingModal);
+    document.getElementById('btn-add-binding-submit').addEventListener('click', submitAddBinding);
+  });
 </script>
 {% endblock %}

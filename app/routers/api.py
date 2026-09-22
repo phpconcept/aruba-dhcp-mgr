@@ -1,8 +1,4 @@
-"""Endpoints JSON appelés en JS (fetch) : connexion switch, lecture pools/bindings.
-
-v1 : lecture seule pour pools/bindings (pool_add/binding_add viendront dans
-une itération suivante, une fois le socle validé).
-"""
+"""Endpoints JSON appelés en JS (fetch) : connexion switch, gestion pools/bindings."""
 from __future__ import annotations
 
 from dataclasses import asdict
@@ -72,11 +68,20 @@ def _get_connected_client(request: Request, switch_id: str):
     return switch_session.get_client(sid, switch_id)
 
 
+def _not_connected() -> dict:
+    return {"ok": False, "error": "Non connecté à ce switch."}
+
+
+# ----------------------------------------------------------------------
+# Pools DHCP
+# ----------------------------------------------------------------------
+
+
 @router.get("/pools")
 def pools_list(switch_id: str, request: Request):
     client = _get_connected_client(request, switch_id)
     if client is None:
-        return {"ok": False, "error": "Non connecté à ce switch."}
+        return _not_connected()
     try:
         pools = dhcp.pool_list(client)
     except AosSwitchError as exc:
@@ -84,13 +89,90 @@ def pools_list(switch_id: str, request: Request):
     return {"ok": True, "pools": [asdict(p) for p in pools]}
 
 
+class PoolPayload(BaseModel):
+    switch_id: str
+    name: str
+    ip: str
+    mask: str
+    dns_servers: list[str] = []
+    default_gateways: list[str] = []
+
+
+@router.post("/pools")
+def pool_add(payload: PoolPayload, request: Request):
+    client = _get_connected_client(request, payload.switch_id)
+    if client is None:
+        return _not_connected()
+    try:
+        dhcp.pool_add(
+            client,
+            payload.name,
+            payload.ip,
+            payload.mask,
+            dns_servers=payload.dns_servers or None,
+            default_gateways=payload.default_gateways or None,
+        )
+    except AosSwitchError as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": True}
+
+
+@router.delete("/pools/{name}")
+def pool_delete(name: str, switch_id: str, request: Request):
+    client = _get_connected_client(request, switch_id)
+    if client is None:
+        return _not_connected()
+    try:
+        dhcp.pool_delete(client, name)
+    except AosSwitchError as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": True}
+
+
+# ----------------------------------------------------------------------
+# Réservations (bindings) DHCP
+# ----------------------------------------------------------------------
+
+
 @router.get("/bindings")
 def bindings_list(switch_id: str, request: Request):
     client = _get_connected_client(request, switch_id)
     if client is None:
-        return {"ok": False, "error": "Non connecté à ce switch."}
+        return _not_connected()
     try:
         bindings = dhcp.binding_list(client)
     except AosSwitchError as exc:
         return {"ok": False, "error": str(exc)}
     return {"ok": True, "bindings": [asdict(b) for b in bindings]}
+
+
+class BindingPayload(BaseModel):
+    switch_id: str
+    name: str
+    mac: str
+    ip: str
+    ip_mask: str
+
+
+@router.post("/bindings")
+def binding_add(payload: BindingPayload, request: Request):
+    client = _get_connected_client(request, payload.switch_id)
+    if client is None:
+        return _not_connected()
+    try:
+        dhcp.binding_add(client, payload.name, payload.mac, payload.ip, payload.ip_mask)
+    except AosSwitchError as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": True}
+
+
+@router.delete("/bindings/{name}")
+def binding_delete(name: str, switch_id: str, request: Request):
+    client = _get_connected_client(request, switch_id)
+    if client is None:
+        return _not_connected()
+    try:
+        dhcp.binding_delete(client, name)
+    except AosSwitchError as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": True}

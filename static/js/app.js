@@ -16,6 +16,26 @@ async function apiFetch(url, opts = {}) {
   return res.json();
 }
 
+function formatNow() {
+  const d = new Date();
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm}/${yyyy} à ${hh}h${min}`;
+}
+
+function setLastUpdated(elementId) {
+  const el = document.getElementById(elementId);
+  if (el) el.textContent = `Dernière mise à jour : ${formatNow()}`;
+}
+
+function refreshCurrentPage() {
+  if (document.getElementById('pools-table-body')) loadPoolsIfConnected();
+  if (document.getElementById('bindings-table-body')) loadBindingsIfConnected();
+}
+
 function csvToList(value) {
   return value.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
 }
@@ -37,18 +57,22 @@ function updateBanner() {
   const btnConnect = document.getElementById('btn-connect');
   const btnDisconnect = document.getElementById('btn-disconnect');
 
+  const btnRefresh = document.getElementById('btn-refresh');
+
   if (g_status.current && g_status.connected.includes(g_status.current)) {
     banner.classList.remove('alert-warning');
     banner.classList.add('alert-success');
     text.textContent = `Connecté à ${switchName(g_status.current)}`;
     btnConnect.textContent = 'Changer de switch';
     btnDisconnect.classList.remove('d-none');
+    btnRefresh.classList.remove('d-none');
   } else {
     banner.classList.remove('alert-success');
     banner.classList.add('alert-warning');
     text.textContent = 'Aucun switch connecté';
     btnConnect.textContent = 'Se connecter';
     btnDisconnect.classList.add('d-none');
+    btnRefresh.classList.add('d-none');
   }
 
   const picker = document.getElementById('switch-picker');
@@ -140,6 +164,8 @@ async function loadPoolsIfConnected() {
     return;
   }
 
+  setLastUpdated('pools-last-updated');
+
   if (result.pools.length === 0) {
     tbody.innerHTML = '<tr><td colspan="7" class="text-muted">Aucun pool configuré.</td></tr>';
     return;
@@ -190,16 +216,17 @@ async function submitAddPool() {
   await loadPoolsIfConnected();
 }
 
-async function deletePool(name) {
-  if (!confirm(`Supprimer le pool "${name}" ?`)) return;
-  const result = await apiFetch(`/api/pools/${encodeURIComponent(name)}?switch_id=${g_status.current}`, { method: 'DELETE' });
-  if (!result.ok) {
-    const errorBox = document.getElementById('pools-error');
-    errorBox.textContent = result.error || 'Échec de la suppression.';
-    errorBox.classList.remove('d-none');
-    return;
-  }
-  await loadPoolsIfConnected();
+function deletePool(name) {
+  confirmAction(`Supprimer le pool "${name}" ?`, async () => {
+    const result = await apiFetch(`/api/pools/${encodeURIComponent(name)}?switch_id=${g_status.current}`, { method: 'DELETE' });
+    if (!result.ok) {
+      const errorBox = document.getElementById('pools-error');
+      errorBox.textContent = result.error || 'Échec de la suppression.';
+      errorBox.classList.remove('d-none');
+      return;
+    }
+    await loadPoolsIfConnected();
+  });
 }
 
 // ------------------------------------------------------------------
@@ -225,6 +252,8 @@ async function loadBindingsIfConnected() {
     tbody.innerHTML = '';
     return;
   }
+
+  setLastUpdated('bindings-last-updated');
 
   if (result.bindings.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Aucune réservation.</td></tr>';
@@ -281,16 +310,29 @@ async function submitAddBinding() {
   await loadBindingsIfConnected();
 }
 
-async function deleteBinding(name) {
-  if (!confirm(`Supprimer la réservation "${name}" ?`)) return;
-  const result = await apiFetch(`/api/bindings/${encodeURIComponent(name)}?switch_id=${g_status.current}`, { method: 'DELETE' });
-  if (!result.ok) {
-    const errorBox = document.getElementById('bindings-error');
-    errorBox.textContent = result.error || 'Échec de la suppression.';
-    errorBox.classList.remove('d-none');
-    return;
-  }
-  await loadBindingsIfConnected();
+function deleteBinding(name) {
+  confirmAction(`Supprimer la réservation "${name}" ?`, async () => {
+    const result = await apiFetch(`/api/bindings/${encodeURIComponent(name)}?switch_id=${g_status.current}`, { method: 'DELETE' });
+    if (!result.ok) {
+      const errorBox = document.getElementById('bindings-error');
+      errorBox.textContent = result.error || 'Échec de la suppression.';
+      errorBox.classList.remove('d-none');
+      return;
+    }
+    await loadBindingsIfConnected();
+  });
+}
+
+// ------------------------------------------------------------------
+// Confirmation générique (remplace window.confirm pour les suppressions)
+// ------------------------------------------------------------------
+
+let g_confirmCallback = null;
+
+function confirmAction(message, onConfirm) {
+  document.getElementById('modal-confirm-text').textContent = message;
+  g_confirmCallback = onConfirm;
+  new bootstrap.Modal(document.getElementById('modal-confirm')).show();
 }
 
 // ------------------------------------------------------------------
@@ -301,4 +343,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-connect').addEventListener('click', openConnectModal);
   document.getElementById('btn-disconnect').addEventListener('click', submitDisconnect);
   document.getElementById('btn-connect-submit').addEventListener('click', submitConnect);
+  document.getElementById('btn-refresh').addEventListener('click', refreshCurrentPage);
+  document.getElementById('btn-confirm-submit').addEventListener('click', async () => {
+    bootstrap.Modal.getInstance(document.getElementById('modal-confirm')).hide();
+    if (g_confirmCallback) {
+      const cb = g_confirmCallback;
+      g_confirmCallback = null;
+      await cb();
+    }
+  });
 });

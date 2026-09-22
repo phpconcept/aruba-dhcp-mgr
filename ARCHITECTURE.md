@@ -289,16 +289,37 @@ du dashboard), pensée pour grandir progressivement :
   l'eau (options DHCP, etc.). Contient pour l'instant uniquement le statut
   enable/disable du serveur DHCP, en lecture seule.
 
-**Point de fiabilité à surveiller** : contrairement à `pool_list()` (REST
-structuré), il n'y a pas d'endpoint REST connu pour ce statut. Ça repose sur
-`dhcp.server_status()` côté lib `aruba-aos-switch`, qui parse le texte de
-`show dhcp-server` (même réserve que `binding_list()` — sortie potentiellement
-sensible à la version de firmware). Le motif cherché (« DHCP server :
-Enabled/Disabled ») est une hypothèse **non encore validée sur un switch
-réel**. Si le badge affiche "Indéterminé" en pratique, il faudra relever la
-sortie exacte de `show dhcp-server` sur le switch labo et ajuster le motif en
-conséquence.
+**Fiabilité** : contrairement à `pool_list()` (REST structuré), il n'y a pas
+d'endpoint REST connu pour ce statut. `dhcp.server_status()` côté lib
+`aruba-aos-switch` parse le texte de `show dhcp-server` (même réserve que
+`binding_list()` sur la sensibilité au firmware) — mais le motif a été
+**validé sur la sortie réelle** de deux switchs (un DHCP désactivé, un
+activé) :
+```
+ Configuration and Status - DHCP Server
 
-**À faire plus tard** : une fois le statut fiable, envisager une action pour
-basculer enable/disable depuis cette page (actuellement demandé en lecture
-seule uniquement).
+  DHCP Server Enabled       : Yes
+  DHCPv4 Operational Status : Enabled
+  Traps Enabled             : Yes
+  Persistent Lease Database : No
+  Conflict Logging Enabled  : No
+  DHCP VLAN Interfaces      : 31,32
+```
+`server_status()` s'appuie sur « DHCP Server Enabled » (le champ qui
+correspond aux commandes `dhcp-server enable`/`disable`).
+
+**Champs disponibles dans cette même sortie, pas encore exploités** —
+pistes pour la suite :
+- `DHCP VLAN Interfaces` : liste des VLAN sur lesquels le serveur DHCP est
+  actif (ex. `31,32`) — sujet identifié comme intéressant à traiter, pas
+  encore priorisé
+- `DHCPv4 Operational Status` : statut opérationnel (peut différer du
+  statut administratif si configuré mais sans interface VLAN active, par
+  exemple)
+- `Persistent Lease Database`, `Conflict Logging Enabled`, `Traps Enabled`
+
+**Aussi à faire plus tard** : une fois un besoin clair identifié, envisager
+une action pour basculer enable/disable depuis cette page (actuellement en
+lecture seule uniquement). Egalement disponible côté CLI switch :
+`show dhcp-server binding`/`conflicts`/`database`/`statistics` — pas
+explorés pour l'instant.

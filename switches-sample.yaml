@@ -1,0 +1,13 @@
+# Liste des switchs Aruba connus (nom + IP uniquement — jamais d'identifiants ici).
+# Le username/password sont demandés à chaque session via la popup de connexion.
+#
+# Ce fichier est un exemple versionné (switches-sample.yaml). Le fichier
+# réel utilisé par l'appli, switches.yaml, n'est PAS versionné (voir
+# .gitignore) : il est créé automatiquement au premier ajout de switch
+# depuis le dashboard, pour ne jamais écraser l'inventaire réel d'une
+# instance existante lors d'une mise à jour du code. Pour démarrer avec cet
+# exemple : cp switches-sample.yaml switches.yaml
+switches:
+  - id: switch-labo
+    name: "Switch labo (2930)"
+    host: "192.168.22.2"

@@ -85,8 +85,15 @@ pour le détail.
 
 ## Configuration
 
-Éditer `switches.yaml` pour déclarer les switchs connus (nom + IP
-uniquement, aucun identifiant) :
+`switches.yaml` (nom + IP des switchs connus, aucun identifiant) **n'est
+pas versionné** — il est créé automatiquement au premier ajout de switch
+depuis le dashboard, pour qu'une mise à jour du code (`git pull`) n'écrase
+jamais l'inventaire réel d'une instance. `switches-sample.yaml` (versionné)
+sert de point de départ si besoin :
+
+```bash
+cp switches-sample.yaml switches.yaml
+```
 
 ```yaml
 switches:
@@ -95,7 +102,8 @@ switches:
     host: "192.168.22.4"
 ```
 
-Ça peut aussi se faire depuis le dashboard une fois l'appli lancée.
+Le plus simple reste de tout gérer depuis le dashboard une fois l'appli
+lancée (ajout/suppression de switch).
 
 ## Lancement
 

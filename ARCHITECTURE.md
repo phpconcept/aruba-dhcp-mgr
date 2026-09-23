@@ -27,6 +27,7 @@ de dépendance FastAPI/Jinja2.
 |---|---|
 | **FastAPI + Jinja2 + Bootstrap 5** | Cohérent avec `inventory-dashboard`, plutôt que de reproduire à l'identique la stack de l'ancien PHP (w3.css/Bootstrap 3/jQuery) — validé avec Vincent. |
 | **Aucune donnée persistée (pas de SQLite)** | Seul `switches.yaml` est sur disque (nom + IP des switchs connus, aucun secret). Cohérent avec le principe d'origine du PHP : les identifiants ne sont jamais stockés. |
+| **`switches.yaml` non versionné** | C'est un état runtime (l'inventaire réel de switchs d'une instance), pas du code — versionné, une mise à jour du dépôt l'écraserait avec l'exemple. `switches-sample.yaml` (versionné) sert de modèle ; `switches.yaml` (gitignore) est créé automatiquement par `config.save_switches()` au premier ajout de switch depuis le dashboard. |
 | **Login/mot de passe redemandés à chaque session** | Popup de connexion (équivalent de la modale `server_select` du PHP) à chaque nouvelle session navigateur. |
 | **Connexion switch gardée en mémoire process, pas en base** | `app/switch_session.py` : dict `{session_id: {switch_id: AosSwitchClient}}`. Un redémarrage du service déconnecte tout le monde — choix assumé, comme le "Restart Session" du PHP. |
 | **Multi-switch dès la v1** | Le registre est à deux niveaux (session → switch_id → client) et `switches.yaml` liste plusieurs switchs possibles, pour éviter une V2 qui casserait ce modèle. |
@@ -52,9 +53,11 @@ de dépendance FastAPI/Jinja2.
 ├── static/
 │   ├── js/app.js             # connexion switch, chargement pools/bindings en AJAX
 │   └── style.css
-├── switches.yaml             # liste des switchs connus (nom, IP) — pas de secrets
-├── deploy/                   # (à venir : unité systemd, cf. §6)
-├── requirements.txt
+├── switches-sample.yaml      # exemple versionné (voir §6 / .gitignore)
+├── switches.yaml              # état réel, NON versionné — créé au 1er ajout de switch
+├── deploy/aruba-dhcp-mgr.service  # unité systemd, cf. §6
+├── requirements.txt           # dev (install éditable d'aruba-aos-switch)
+├── requirements-prod.txt      # prod (aruba-aos-switch figé depuis GitHub)
 ├── .gitignore
 └── ARCHITECTURE.md           # ce fichier
 ```
@@ -165,14 +168,17 @@ durcissement `ProtectSystem=strict` + `ReadWritePaths` limité à
 3. Générer la clé de déploiement SSH sur ce serveur, l'ajouter comme
    *deploy key* (lecture seule) sur `aruba-dhcp-mgr` et `aruba-aos-switch`
    (voir section précédente).
-4. `git clone` de `aruba-dhcp-mgr` dans `/var/dev/aruba-dhcp-mgr` (ou
-   ajuster les chemins dans le `.service` si autre emplacement), créer le
-   venv et installer `requirements-prod.txt` :
+4. `git clone` de `aruba-dhcp-mgr` dans `/opt/aruba-dhcp-mgr` — convention
+   FHS pour ce type d'appli auto-contenue (pas gérée par le paquet de la
+   distro), distincte de `/var/www`/`/srv` réservés aux vhosts Apache
+   classiques (PHP) sur ce serveur. Créer le venv et installer
+   `requirements-prod.txt` :
    ```bash
-   cd /var/dev/aruba-dhcp-mgr
+   sudo git clone https://github.com/phpconcept/aruba-dhcp-mgr.git /opt/aruba-dhcp-mgr
+   cd /opt/aruba-dhcp-mgr
    python3 -m venv .venv
    .venv/bin/pip install -r requirements-prod.txt
-   sudo chown -R svc-dhcp-mgr:svc-dhcp-mgr /var/dev/aruba-dhcp-mgr
+   sudo chown -R svc-dhcp-mgr:svc-dhcp-mgr /opt/aruba-dhcp-mgr
    ```
 5. Installer et activer le service :
    ```bash

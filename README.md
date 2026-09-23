@@ -60,16 +60,28 @@ lecture du domain-name uniquement via `show running-config`...).
 
 ## Installation
 
+**Dev** (co-développement avec [`aruba-aos-switch`](https://github.com/phpconcept/aruba-aos-switch), cloné en dépôt frère) :
 ```bash
 git clone https://github.com/phpconcept/aruba-dhcp-mgr.git
 cd aruba-dhcp-mgr
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
-
 `requirements.txt` installe `aruba-aos-switch` en editable depuis
 `/var/dev/aruba-aos-switch` — adapter ce chemin si la lib est clonée
 ailleurs.
+
+**Prod** (serveur distinct, sans dossier source pour la lib) :
+```bash
+git clone https://github.com/phpconcept/aruba-dhcp-mgr.git
+cd aruba-dhcp-mgr
+python3 -m venv .venv
+.venv/bin/pip install -r requirements-prod.txt
+```
+`requirements-prod.txt` récupère `aruba-aos-switch` directement depuis
+GitHub, à une version taguée — nécessite une clé de déploiement SSH
+(lecture seule) sur ce repo. Voir [`ARCHITECTURE.md` §6](ARCHITECTURE.md#6-déploiement)
+pour le détail.
 
 ## Configuration
 

@@ -96,8 +96,8 @@ ne sont pas encore branchés côté web — prévu en itération suivante (voir 
 
 ## 6. Déploiement
 
-**Pas encore fait.** Pour l'instant, lancé manuellement en `nohup` pour les
-tests :
+**Dev (Mowgli), pas encore fait pour la prod.** Pour l'instant, lancé
+manuellement en `nohup` pour les tests :
 ```bash
 cd /var/dev/aruba-dhcp-mgr
 .venv/bin/uvicorn app.main:app --host 192.168.22.25 --port 8002
@@ -105,9 +105,51 @@ cd /var/dev/aruba-dhcp-mgr
 Port `8002` retenu car `8000` (`jeedom-mcp-server`) et `8001`
 (`inventory-dashboard`) sont déjà pris.
 
-À faire quand le socle sera validé : utilisateur système dédié
-(`svc-dhcp-mgr`, même schéma que `svc-dashboard` dans `inventory-dashboard`)
-et unité systemd dans `deploy/aruba-dhcp-mgr.service`.
+### Dépendance à `aruba-aos-switch` : dev vs prod
+
+La prod tournera sur un **serveur distinct de Mowgli**. Décision (validée
+avec Vincent) : pas de dossier `lib/`/`3rdparty/` dédié — la distinction
+dev/prod se fait par le fichier de requirements utilisé, pip gère le reste
+nativement :
+
+- **`requirements.txt`** (dev, sur Mowgli) : install éditable du dépôt
+  frère `/var/dev/aruba-aos-switch` (`-e /var/dev/aruba-aos-switch`) — les
+  deux projets se développent en parallèle, toute modif de la lib est prise
+  en compte immédiatement dans `aruba-dhcp-mgr` sans réinstall.
+- **`requirements-prod.txt`** (nouveau, pour le serveur de prod) :
+  `aruba-aos-switch` récupéré depuis GitHub à une **version taguée**
+  (`aruba-aos-switch @ git+ssh://git@github.com/phpconcept/aruba-aos-switch.git@v0.1.0`)
+  plutôt qu'en éditable — figé, reproductible, découplé de ce qui est en
+  cours de dev sur Mowgli. Pas de dossier source à gérer sur le serveur de
+  prod : pip clone et installe directement dans le venv.
+
+Ce découpage évite un `.git` imbriqué dans l'arborescence d'un autre projet
+(fragile avec certains outils, risque qu'un `git add -A` malheureux
+échappe au `.gitignore`) tout en gardant `aruba-aos-switch` publiable et
+réutilisable par d'éventuels futurs projets, en dépôt frère indépendant.
+
+**Pourquoi `git+ssh://` et pas `git+https://`** : le dépôt est privé.
+`https://` demanderait un identifiant/PAT au moment de l'install (pas
+automatisable proprement) ; `ssh://` s'appuie sur une **clé de déploiement
+dédiée** (deploy key GitHub, lecture seule, à ajouter uniquement sur ce
+repo) configurée sur le serveur de prod — pas de token à gérer/faire
+tourner.
+
+**À faire pour que la prod fonctionne** (une fois le serveur choisi) :
+1. Générer une paire de clés SSH sur le serveur de prod, ajouter la
+   publique comme *deploy key* (lecture seule) sur
+   `github.com/phpconcept/aruba-aos-switch` (et sur
+   `aruba-dhcp-mgr` lui-même, pour le `git clone` initial du serveur).
+2. `git clone` de `aruba-dhcp-mgr` sur le serveur de prod, puis
+   `pip install -r requirements-prod.txt` dans un venv dédié.
+3. À chaque nouvelle version de `aruba-aos-switch` qu'on veut pousser en
+   prod : tag GitHub (`git tag vX.Y.Z && git push --tags`), mettre à jour
+   la référence de tag dans `requirements-prod.txt`, réinstaller sur le
+   serveur de prod.
+
+Le reste (utilisateur système dédié `svc-dhcp-mgr`, unité systemd dans
+`deploy/aruba-dhcp-mgr.service`, choix du serveur) reste à faire — cette
+section sera complétée une fois le serveur de prod choisi/accessible.
 
 ## 7. Point de configuration switch à connaître (troubleshooting)
 

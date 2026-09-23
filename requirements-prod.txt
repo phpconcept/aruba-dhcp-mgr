@@ -1,0 +1,16 @@
+# Dépendances pour un déploiement "production", sur un serveur distinct de
+# l'environnement de dev. Contrairement à requirements.txt (install éditable
+# du dépôt local aruba-aos-switch, pour le co-développement des deux
+# projets), ici aruba-aos-switch est récupéré depuis GitHub à une version
+# figée (tag) — pas de dossier source local à gérer, pip s'en charge.
+#
+# Le dépôt étant privé, le serveur de prod doit avoir accès en lecture :
+# clé de déploiement SSH dédiée (deploy key, lecture seule) recommandée,
+# voir ARCHITECTURE.md.
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart
+itsdangerous
+pyyaml
+aruba-aos-switch @ git+ssh://git@github.com/phpconcept/aruba-aos-switch.git@v0.1.0

@@ -84,15 +84,15 @@ Serveur dédié (ex. `/opt/aruba-dhcp-mgr` — voir
 [`ARCHITECTURE.md` §6](ARCHITECTURE.md#6-déploiement) pour la procédure
 complète, utilisateur système compris), sans dossier source pour la lib :
 ```bash
-sudo git clone git@github.com-aruba-dhcp-mgr:phpconcept/aruba-dhcp-mgr.git /opt/aruba-dhcp-mgr
+sudo git clone https://github.com/phpconcept/aruba-dhcp-mgr.git /opt/aruba-dhcp-mgr
 cd /opt/aruba-dhcp-mgr
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-prod.txt
 sudo chown -R svc-dhcp-mgr:svc-dhcp-mgr /opt/aruba-dhcp-mgr
 ```
 `requirements-prod.txt` récupère `aruba-aos-switch` directement depuis
-GitHub, à une version taguée — nécessite une clé de déploiement SSH
-(lecture seule) sur ce repo (voir `ARCHITECTURE.md` §6).
+GitHub, à une version taguée. Les deux dépôts étant publics, aucune
+authentification n'est nécessaire (voir `ARCHITECTURE.md` §6).
 
 ## Configuration
 

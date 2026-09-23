@@ -119,9 +119,9 @@ nativement :
   frère `/var/dev/aruba-aos-switch` (`-e /var/dev/aruba-aos-switch`) — les
   deux projets se développent en parallèle, toute modif de la lib est prise
   en compte immédiatement dans `aruba-dhcp-mgr` sans réinstall.
-- **`requirements-prod.txt`** (nouveau, pour le serveur de prod) :
-  `aruba-aos-switch` récupéré depuis GitHub à une **version taguée**
-  (`aruba-aos-switch @ git+ssh://git@github.com/phpconcept/aruba-aos-switch.git@v0.1.0`)
+- **`requirements-prod.txt`** (pour le serveur de prod) : `aruba-aos-switch`
+  récupéré depuis GitHub à une **version taguée**
+  (`aruba-aos-switch @ git+https://github.com/phpconcept/aruba-aos-switch.git@v0.1.0`)
   plutôt qu'en éditable — figé, reproductible, découplé de ce qui est en
   cours de dev sur Mowgli. Pas de dossier source à gérer sur le serveur de
   prod : pip clone et installe directement dans le venv.
@@ -131,21 +131,17 @@ Ce découpage évite un `.git` imbriqué dans l'arborescence d'un autre projet
 échappe au `.gitignore`) tout en gardant `aruba-aos-switch` publiable et
 réutilisable par d'éventuels futurs projets, en dépôt frère indépendant.
 
-**Pourquoi `git+ssh://` et pas `git+https://`** : le dépôt est privé.
-`https://` demanderait un identifiant/PAT au moment de l'install (pas
-automatisable proprement) ; `ssh://` s'appuie sur une **clé de déploiement
-dédiée** (deploy key GitHub, lecture seule, à ajouter uniquement sur ce
-repo) configurée sur le serveur de prod — pas de token à gérer/faire
-tourner.
+**Les deux dépôts sont publics** (décision de Vincent, 23/09/2026) : `git
+clone`/`pip install` fonctionnent en HTTPS sans authentification, ni clé
+SSH ni PAT à gérer sur le serveur de prod. Historique gardé tel quel (un
+ancien `switches.yaml` avec de vraies IP internes traîne dans quelques
+commits d'`aruba-dhcp-mgr` — jugé sans gravité, pas d'identifiants
+concernés, pas réécrit).
 
 **À faire pour que la prod fonctionne** (une fois le serveur choisi) :
-1. Générer une paire de clés SSH sur le serveur de prod, ajouter la
-   publique comme *deploy key* (lecture seule) sur
-   `github.com/phpconcept/aruba-aos-switch` (et sur
-   `aruba-dhcp-mgr` lui-même, pour le `git clone` initial du serveur).
-2. `git clone` de `aruba-dhcp-mgr` sur le serveur de prod, puis
+1. `git clone` de `aruba-dhcp-mgr` sur le serveur de prod, puis
    `pip install -r requirements-prod.txt` dans un venv dédié.
-3. À chaque nouvelle version de `aruba-aos-switch` qu'on veut pousser en
+2. À chaque nouvelle version de `aruba-aos-switch` qu'on veut pousser en
    prod : tag GitHub (`git tag vX.Y.Z && git push --tags`), mettre à jour
    la référence de tag dans `requirements-prod.txt`, réinstaller sur le
    serveur de prod.
@@ -165,61 +161,26 @@ durcissement `ProtectSystem=strict` + `ReadWritePaths` limité à
    ```bash
    sudo useradd --system --no-create-home --shell /usr/sbin/nologin svc-dhcp-mgr
    ```
-3. Générer une clé de déploiement SSH **par dépôt** sur ce serveur (⚠️
-   GitHub interdit de réutiliser la même clé publique comme deploy key sur
-   deux dépôts — erreur *"Key is already in use"* — voir le tuto
-   `github-deploy-key-ssh.md` dans Cerveau-externe pour la procédure
-   détaillée) :
-   ```bash
-   ssh-keygen -t ed25519 -C "deploy-key-aruba-dhcp-mgr" -f ~/.ssh/id_ed25519_aruba-dhcp-mgr -N ""
-   ssh-keygen -t ed25519 -C "deploy-key-aruba-aos-switch" -f ~/.ssh/id_ed25519_aruba-aos-switch -N ""
-   cat ~/.ssh/id_ed25519_aruba-dhcp-mgr.pub    # à coller sur github.com/phpconcept/aruba-dhcp-mgr
-   cat ~/.ssh/id_ed25519_aruba-aos-switch.pub  # à coller sur github.com/phpconcept/aruba-aos-switch
-   ```
-   Sur GitHub, sur **chaque** repo (avec sa propre clé) : Settings →
-   Deploy keys → Add deploy key → coller la clé publique → **ne pas
-   cocher** "Allow write access" (c'est ce qui garantit le lecture seule).
-   Puis un alias par dépôt dans `~/.ssh/config` sur ce serveur, pour que
-   SSH sache quelle clé utiliser selon le dépôt visé :
-   ```
-   Host github.com-aruba-dhcp-mgr
-       HostName github.com
-       User git
-       IdentityFile ~/.ssh/id_ed25519_aruba-dhcp-mgr
-       IdentitiesOnly yes
-
-   Host github.com-aruba-aos-switch
-       HostName github.com
-       User git
-       IdentityFile ~/.ssh/id_ed25519_aruba-aos-switch
-       IdentitiesOnly yes
-   ```
-   Vérifier avec `ssh -T git@github.com-aruba-dhcp-mgr` (et l'équivalent
-   pour l'autre alias) — doit confirmer l'authentification sans erreur.
-   Les deploy keys ne fonctionnent qu'en SSH — toujours utiliser l'alias
-   du dépôt comme host dans l'URL (`git@github.com-aruba-dhcp-mgr:...`),
-   jamais `github.com` directement ni `https://...` (qui demanderait un
-   identifiant interactif, non automatisable, sur un repo privé).
-4. `git clone` de `aruba-dhcp-mgr` dans `/opt/aruba-dhcp-mgr` — convention
+3. `git clone` de `aruba-dhcp-mgr` dans `/opt/aruba-dhcp-mgr` — convention
    FHS pour ce type d'appli auto-contenue (pas gérée par le paquet de la
    distro), distincte de `/var/www`/`/srv` réservés aux vhosts Apache
-   classiques (PHP) sur ce serveur. Créer le venv et installer
-   `requirements-prod.txt` (qui utilise déjà l'alias
-   `github.com-aruba-aos-switch` pour la dépendance à la lib) :
+   classiques (PHP) sur ce serveur. Repo public : simple clone HTTPS,
+   aucune authentification. Créer le venv et installer
+   `requirements-prod.txt` :
    ```bash
-   sudo git clone git@github.com-aruba-dhcp-mgr:phpconcept/aruba-dhcp-mgr.git /opt/aruba-dhcp-mgr
+   sudo git clone https://github.com/phpconcept/aruba-dhcp-mgr.git /opt/aruba-dhcp-mgr
    cd /opt/aruba-dhcp-mgr
    python3 -m venv .venv
    .venv/bin/pip install -r requirements-prod.txt
    sudo chown -R svc-dhcp-mgr:svc-dhcp-mgr /opt/aruba-dhcp-mgr
    ```
-5. Installer et activer le service :
+4. Installer et activer le service :
    ```bash
    sudo cp deploy/aruba-dhcp-mgr.service /etc/systemd/system/
    sudo systemctl daemon-reload
    sudo systemctl enable --now aruba-dhcp-mgr
    ```
-6. Vérifier : `sudo systemctl status aruba-dhcp-mgr`, et que
+5. Vérifier : `sudo systemctl status aruba-dhcp-mgr`, et que
    `switches.yaml` reste bien modifiable (test ajout/suppression de switch
    depuis le dashboard) malgré `ProtectSystem=strict`.
 

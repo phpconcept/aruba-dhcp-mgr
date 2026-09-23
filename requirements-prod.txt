@@ -4,15 +4,11 @@
 # projets), ici aruba-aos-switch est récupéré depuis GitHub à une version
 # figée (tag) — pas de dossier source local à gérer, pip s'en charge.
 #
-# Le dépôt étant privé, le serveur de prod doit avoir accès en lecture :
-# clé de déploiement SSH dédiée (deploy key, lecture seule) — une clé par
-# dépôt (GitHub interdit de réutiliser la même clé sur deux dépôts), avec
-# un alias dans ~/.ssh/config (github.com-aruba-aos-switch ci-dessous) qui
-# pointe la bonne clé. Voir ARCHITECTURE.md §6.
+# Les deux dépôts sont publics : simple install HTTPS, sans authentification.
 fastapi
 uvicorn[standard]
 jinja2
 python-multipart
 itsdangerous
 pyyaml
-aruba-aos-switch @ git+ssh://git@github.com-aruba-aos-switch/phpconcept/aruba-aos-switch.git@v0.1.0
+aruba-aos-switch @ git+https://github.com/phpconcept/aruba-aos-switch.git@v0.1.0

@@ -165,34 +165,49 @@ durcissement `ProtectSystem=strict` + `ReadWritePaths` limité à
    ```bash
    sudo useradd --system --no-create-home --shell /usr/sbin/nologin svc-dhcp-mgr
    ```
-3. Générer la clé de déploiement SSH sur ce serveur, l'ajouter comme
-   *deploy key* (lecture seule) sur `aruba-dhcp-mgr` et `aruba-aos-switch` :
+3. Générer une clé de déploiement SSH **par dépôt** sur ce serveur (⚠️
+   GitHub interdit de réutiliser la même clé publique comme deploy key sur
+   deux dépôts — erreur *"Key is already in use"* — voir le tuto
+   `github-deploy-key-ssh.md` dans Cerveau-externe pour la procédure
+   détaillée) :
    ```bash
-   ssh-keygen -t ed25519 -C "deploy-key-aruba-dhcp-mgr" -f ~/.ssh/id_ed25519_aruba -N ""
-   cat ~/.ssh/id_ed25519_aruba.pub  # à coller sur GitHub
+   ssh-keygen -t ed25519 -C "deploy-key-aruba-dhcp-mgr" -f ~/.ssh/id_ed25519_aruba-dhcp-mgr -N ""
+   ssh-keygen -t ed25519 -C "deploy-key-aruba-aos-switch" -f ~/.ssh/id_ed25519_aruba-aos-switch -N ""
+   cat ~/.ssh/id_ed25519_aruba-dhcp-mgr.pub    # à coller sur github.com/phpconcept/aruba-dhcp-mgr
+   cat ~/.ssh/id_ed25519_aruba-aos-switch.pub  # à coller sur github.com/phpconcept/aruba-aos-switch
    ```
-   Sur GitHub, pour **chacun** des deux repos : Settings → Deploy keys →
-   Add deploy key → coller la clé publique → **ne pas cocher** "Allow
-   write access" (c'est ce qui garantit le lecture seule). Une seule paire
-   de clés suffit pour les deux repos (ajoutée séparément sur chacun).
-   Puis dans `~/.ssh/config` sur ce serveur :
+   Sur GitHub, sur **chaque** repo (avec sa propre clé) : Settings →
+   Deploy keys → Add deploy key → coller la clé publique → **ne pas
+   cocher** "Allow write access" (c'est ce qui garantit le lecture seule).
+   Puis un alias par dépôt dans `~/.ssh/config` sur ce serveur, pour que
+   SSH sache quelle clé utiliser selon le dépôt visé :
    ```
-   Host github.com
-       IdentityFile ~/.ssh/id_ed25519_aruba
+   Host github.com-aruba-dhcp-mgr
+       HostName github.com
+       User git
+       IdentityFile ~/.ssh/id_ed25519_aruba-dhcp-mgr
+       IdentitiesOnly yes
+
+   Host github.com-aruba-aos-switch
+       HostName github.com
+       User git
+       IdentityFile ~/.ssh/id_ed25519_aruba-aos-switch
        IdentitiesOnly yes
    ```
-   Vérifier avec `ssh -T git@github.com` (doit confirmer l'authentification
-   sans erreur). Les deploy keys ne fonctionnent qu'en SSH — toujours
-   utiliser `git@github.com:...` comme URL, jamais `https://...` (qui
-   demanderait un identifiant interactif, non automatisable, sur un repo
-   privé).
+   Vérifier avec `ssh -T git@github.com-aruba-dhcp-mgr` (et l'équivalent
+   pour l'autre alias) — doit confirmer l'authentification sans erreur.
+   Les deploy keys ne fonctionnent qu'en SSH — toujours utiliser l'alias
+   du dépôt comme host dans l'URL (`git@github.com-aruba-dhcp-mgr:...`),
+   jamais `github.com` directement ni `https://...` (qui demanderait un
+   identifiant interactif, non automatisable, sur un repo privé).
 4. `git clone` de `aruba-dhcp-mgr` dans `/opt/aruba-dhcp-mgr` — convention
    FHS pour ce type d'appli auto-contenue (pas gérée par le paquet de la
    distro), distincte de `/var/www`/`/srv` réservés aux vhosts Apache
    classiques (PHP) sur ce serveur. Créer le venv et installer
-   `requirements-prod.txt` :
+   `requirements-prod.txt` (qui utilise déjà l'alias
+   `github.com-aruba-aos-switch` pour la dépendance à la lib) :
    ```bash
-   sudo git clone git@github.com:phpconcept/aruba-dhcp-mgr.git /opt/aruba-dhcp-mgr
+   sudo git clone git@github.com-aruba-dhcp-mgr:phpconcept/aruba-dhcp-mgr.git /opt/aruba-dhcp-mgr
    cd /opt/aruba-dhcp-mgr
    python3 -m venv .venv
    .venv/bin/pip install -r requirements-prod.txt

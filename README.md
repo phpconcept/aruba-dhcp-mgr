@@ -60,7 +60,13 @@ lecture du domain-name uniquement via `show running-config`...).
 
 ## Installation
 
-**Dev** (co-développement avec [`aruba-aos-switch`](https://github.com/phpconcept/aruba-aos-switch), cloné en dépôt frère) :
+Deux modes, selon l'usage — le code est strictement le même, seule la
+provenance d'`aruba-aos-switch` change.
+
+### Dev
+
+Co-développement avec [`aruba-aos-switch`](https://github.com/phpconcept/aruba-aos-switch),
+cloné en dépôt frère (ex. sur Mowgli) :
 ```bash
 git clone https://github.com/phpconcept/aruba-dhcp-mgr.git
 cd aruba-dhcp-mgr
@@ -68,20 +74,25 @@ python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
 `requirements.txt` installe `aruba-aos-switch` en editable depuis
-`/var/dev/aruba-aos-switch` — adapter ce chemin si la lib est clonée
-ailleurs.
+`/var/dev/aruba-aos-switch` — adapter ce chemin dans le fichier si la lib
+est clonée ailleurs. Toute modif de la lib est prise en compte
+immédiatement, sans réinstall.
 
-**Prod** (serveur distinct, sans dossier source pour la lib) :
+### Prod
+
+Serveur dédié (ex. `/opt/aruba-dhcp-mgr` — voir
+[`ARCHITECTURE.md` §6](ARCHITECTURE.md#6-déploiement) pour la procédure
+complète, utilisateur système compris), sans dossier source pour la lib :
 ```bash
-git clone https://github.com/phpconcept/aruba-dhcp-mgr.git
-cd aruba-dhcp-mgr
+sudo git clone https://github.com/phpconcept/aruba-dhcp-mgr.git /opt/aruba-dhcp-mgr
+cd /opt/aruba-dhcp-mgr
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-prod.txt
+sudo chown -R svc-dhcp-mgr:svc-dhcp-mgr /opt/aruba-dhcp-mgr
 ```
 `requirements-prod.txt` récupère `aruba-aos-switch` directement depuis
 GitHub, à une version taguée — nécessite une clé de déploiement SSH
-(lecture seule) sur ce repo. Voir [`ARCHITECTURE.md` §6](ARCHITECTURE.md#6-déploiement)
-pour le détail.
+(lecture seule) sur ce repo (voir `ARCHITECTURE.md` §6).
 
 ## Configuration
 
@@ -107,11 +118,35 @@ lancée (ajout/suppression de switch).
 
 ## Lancement
 
+### Manuel (dev, tests ponctuels)
+
 ```bash
 .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8002
 ```
+Puis ouvrir `http://<host>:8002/`. S'arrête avec le terminal (ou en tâche
+de fond via `nohup ... &`, mais sans redémarrage automatique).
 
-Puis ouvrir `http://<host>:8002/`.
+### systemd (prod)
+
+Une fois l'installation prod faite (voir plus haut) et l'unité
+`deploy/aruba-dhcp-mgr.service` adaptée (IP du serveur à renseigner —
+détail dans [`ARCHITECTURE.md` §6](ARCHITECTURE.md#6-déploiement)) :
+
+```bash
+sudo cp deploy/aruba-dhcp-mgr.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now aruba-dhcp-mgr
+```
+
+Gestion courante :
+```bash
+sudo systemctl status aruba-dhcp-mgr     # état du service
+sudo systemctl restart aruba-dhcp-mgr    # après une mise à jour du code
+sudo journalctl -u aruba-dhcp-mgr -f     # logs en direct
+```
+
+Démarre automatiquement au boot, redémarre seul en cas de plantage
+(`Restart=on-failure`).
 
 ## Statut
 

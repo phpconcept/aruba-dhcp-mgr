@@ -152,3 +152,7 @@ Démarre automatiquement au boot, redémarre seul en cas de plantage
 
 Projet en développement actif, usage interne sur un LAN fermé — pas
 d'authentification sur l'application elle-même.
+
+## Licence
+
+MIT, voir [LICENSE](LICENSE).

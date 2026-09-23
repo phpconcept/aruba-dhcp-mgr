@@ -147,9 +147,42 @@ tourner.
    la référence de tag dans `requirements-prod.txt`, réinstaller sur le
    serveur de prod.
 
-Le reste (utilisateur système dédié `svc-dhcp-mgr`, unité systemd dans
-`deploy/aruba-dhcp-mgr.service`, choix du serveur) reste à faire — cette
-section sera complétée une fois le serveur de prod choisi/accessible.
+### Unité systemd (`deploy/aruba-dhcp-mgr.service`)
+
+✅ Préparée, même sans serveur cible choisi — reprend le schéma de
+`inventory-dashboard`/`svc-dashboard` (utilisateur système dédié,
+durcissement `ProtectSystem=strict` + `ReadWritePaths` limité à
+`switches.yaml`, seul fichier modifié à l'exécution).
+
+**Reste à faire une fois le serveur de prod choisi/accessible :**
+1. Remplacer `<IP_SERVEUR_PROD>` dans le fichier `.service` par l'IP LAN
+   réelle du serveur (convention : bind sur l'IP explicite, pas `0.0.0.0`,
+   comme les autres services).
+2. Créer l'utilisateur système dédié :
+   ```bash
+   sudo useradd --system --no-create-home --shell /usr/sbin/nologin svc-dhcp-mgr
+   ```
+3. Générer la clé de déploiement SSH sur ce serveur, l'ajouter comme
+   *deploy key* (lecture seule) sur `aruba-dhcp-mgr` et `aruba-aos-switch`
+   (voir section précédente).
+4. `git clone` de `aruba-dhcp-mgr` dans `/var/dev/aruba-dhcp-mgr` (ou
+   ajuster les chemins dans le `.service` si autre emplacement), créer le
+   venv et installer `requirements-prod.txt` :
+   ```bash
+   cd /var/dev/aruba-dhcp-mgr
+   python3 -m venv .venv
+   .venv/bin/pip install -r requirements-prod.txt
+   sudo chown -R svc-dhcp-mgr:svc-dhcp-mgr /var/dev/aruba-dhcp-mgr
+   ```
+5. Installer et activer le service :
+   ```bash
+   sudo cp deploy/aruba-dhcp-mgr.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now aruba-dhcp-mgr
+   ```
+6. Vérifier : `sudo systemctl status aruba-dhcp-mgr`, et que
+   `switches.yaml` reste bien modifiable (test ajout/suppression de switch
+   depuis le dashboard) malgré `ProtectSystem=strict`.
 
 ## 7. Point de configuration switch à connaître (troubleshooting)
 

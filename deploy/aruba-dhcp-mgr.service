@@ -1,0 +1,28 @@
+[Unit]
+Description=Aruba DHCP Manager (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+User=svc-dhcp-mgr
+Group=svc-dhcp-mgr
+WorkingDirectory=/var/dev/aruba-dhcp-mgr
+Environment=PATH=/var/dev/aruba-dhcp-mgr/.venv/bin
+# IP à renseigner une fois le serveur de prod choisi (voir ARCHITECTURE.md §6) —
+# suit la convention des autres services (bind sur l'IP LAN, pas 0.0.0.0).
+ExecStart=/var/dev/aruba-dhcp-mgr/.venv/bin/uvicorn app.main:app --host <IP_SERVEUR_PROD> --port 8002
+Restart=on-failure
+RestartSec=5
+
+# Durcissement
+NoNewPrivileges=yes
+ProtectSystem=strict
+# switches.yaml est le seul fichier modifié par l'appli à l'exécution
+# (ajout/suppression de switch depuis le dashboard) — tout le reste du
+# dépôt peut rester en lecture seule.
+ReadWritePaths=/var/dev/aruba-dhcp-mgr/switches.yaml
+PrivateTmp=yes
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target

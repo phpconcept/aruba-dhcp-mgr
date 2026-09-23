@@ -134,12 +134,22 @@ sudo useradd --system --no-create-home --shell /usr/sbin/nologin svc-dhcp-mgr
 ```
 
 Une fois l'installation prod faite (voir plus haut, avec
-`sudo chown -R svc-dhcp-mgr:svc-dhcp-mgr ...`) et l'unité
-`deploy/aruba-dhcp-mgr.service` adaptée (IP du serveur à renseigner —
-détail dans [`ARCHITECTURE.md` §6](ARCHITECTURE.md#6-déploiement)) :
+`sudo chown -R svc-dhcp-mgr:svc-dhcp-mgr ...`), créer `switches.yaml`
+**avant** le premier démarrage (sinon le service échoue avec
+`226/NAMESPACE` — `ProtectSystem=strict` ne peut pas monter un
+`ReadWritePaths` vers un fichier qui n'existe pas) :
+```bash
+sudo cp switches-sample.yaml switches.yaml
+sudo chown svc-dhcp-mgr:svc-dhcp-mgr switches.yaml
+```
 
+Puis installer le service et **renseigner l'IP réelle** dans la copie
+installée (`<IP_SERVEUR_PROD>` — éditer le fichier dans
+`/etc/systemd/system/`, pas celui du dépôt, une fois copié c'est lui que
+systemd lit) :
 ```bash
 sudo cp deploy/aruba-dhcp-mgr.service /etc/systemd/system/
+sudo nano /etc/systemd/system/aruba-dhcp-mgr.service   # remplacer <IP_SERVEUR_PROD>
 sudo systemctl daemon-reload
 sudo systemctl enable --now aruba-dhcp-mgr
 ```

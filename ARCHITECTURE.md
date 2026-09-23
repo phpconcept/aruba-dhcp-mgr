@@ -174,15 +174,39 @@ durcissement `ProtectSystem=strict` + `ReadWritePaths` limité à
    .venv/bin/pip install -r requirements-prod.txt
    sudo chown -R svc-dhcp-mgr:svc-dhcp-mgr /opt/aruba-dhcp-mgr
    ```
-4. Installer et activer le service :
+4. Créer `switches.yaml` **avant** de démarrer le service — voir ⚠️
+   ci-dessous, sinon le service ne démarre pas du tout :
+   ```bash
+   sudo cp switches-sample.yaml switches.yaml
+   sudo chown svc-dhcp-mgr:svc-dhcp-mgr switches.yaml
+   ```
+5. Éditer `/etc/systemd/system/aruba-dhcp-mgr.service` (une fois copié à
+   cet endroit, c'est **cette copie-là** que systemd lit, pas le fichier
+   du dépôt) pour renseigner l'IP réelle à la place de
+   `<IP_SERVEUR_PROD>`, puis installer et activer le service :
    ```bash
    sudo cp deploy/aruba-dhcp-mgr.service /etc/systemd/system/
+   sudo nano /etc/systemd/system/aruba-dhcp-mgr.service   # remplacer <IP_SERVEUR_PROD>
    sudo systemctl daemon-reload
    sudo systemctl enable --now aruba-dhcp-mgr
    ```
-5. Vérifier : `sudo systemctl status aruba-dhcp-mgr`, et que
+6. Vérifier : `sudo systemctl status aruba-dhcp-mgr`, et que
    `switches.yaml` reste bien modifiable (test ajout/suppression de switch
    depuis le dashboard) malgré `ProtectSystem=strict`.
+
+⚠️ **Deux pièges rencontrés lors du premier test (fait par erreur sur
+Mowgli plutôt que sur le serveur de prod, mais le flux/les pièges restent
+valables partout)** :
+- **`ReadWritePaths=.../switches.yaml` pointant un fichier inexistant** →
+  `systemd` échoue au démarrage avec `226/NAMESPACE` (`ProtectSystem=strict`
+  ne peut pas monter un `ReadWritePaths` vers un chemin qui n'existe pas).
+  D'où l'étape 4 : créer `switches.yaml` avant tout premier démarrage.
+- **Modifier `<IP_SERVEUR_PROD>` dans le mauvais fichier** → éditer
+  `deploy/aruba-dhcp-mgr.service` dans le dépôt ne sert à rien une fois le
+  service copié dans `/etc/systemd/system/` : c'est cette copie-là qu'il
+  faut éditer (ou recopier après modification du dépôt), sinon systemd
+  démarre avec le placeholder littéral et `uvicorn` échoue à binder
+  dessus.
 
 ## 7. Point de configuration switch à connaître (troubleshooting)
 

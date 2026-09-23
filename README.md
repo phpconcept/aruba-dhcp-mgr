@@ -128,7 +128,13 @@ de fond via `nohup ... &`, mais sans redémarrage automatique).
 
 ### systemd (prod)
 
-Une fois l'installation prod faite (voir plus haut) et l'unité
+Créer l'utilisateur système dédié (une seule fois) :
+```bash
+sudo useradd --system --no-create-home --shell /usr/sbin/nologin svc-dhcp-mgr
+```
+
+Une fois l'installation prod faite (voir plus haut, avec
+`sudo chown -R svc-dhcp-mgr:svc-dhcp-mgr ...`) et l'unité
 `deploy/aruba-dhcp-mgr.service` adaptée (IP du serveur à renseigner —
 détail dans [`ARCHITECTURE.md` §6](ARCHITECTURE.md#6-déploiement)) :
 
